@@ -121,4 +121,23 @@ public class HorarioService {
             throw new BusinessException("A turma já possui outra aula agendada neste mesmo dia e intervalo de horário.");
         }
     }
+
+    @Transactional
+    public Horario atualizar (Long id, Horario horarioAtualizado) {
+
+        // Verifica se o horário existe antes de atualizar
+        if (!horarioRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Horário com ID " + id + " não encontrado.");
+        }
+
+        // Garante que o ID do objeto recebido é o mesmo do objeto que está sendo atualizadp
+        horarioAtualizado.setId(id);
+
+        // Faz as devidas validações
+        validarHorarioInicioEFim(horarioAtualizado);
+        validarEntidades(horarioAtualizado);
+        validarConflitos(horarioAtualizado);
+
+        return horarioRepository.save(horarioAtualizado);
+    }
 }
