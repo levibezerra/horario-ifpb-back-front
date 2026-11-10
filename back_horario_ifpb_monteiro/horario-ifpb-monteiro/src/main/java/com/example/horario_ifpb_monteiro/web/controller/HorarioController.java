@@ -72,6 +72,24 @@ public class HorarioController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<HorarioDTO> atualizar (@PathVariable Long id, @RequestBody @Valid HorarioDTO dto) {
+        Horario horario = Horario.builder()
+                .id(id) // Garante que o ID da URL seja mantido
+                .diaSemana(dto.diaSemana())
+                .horarioInicio(dto.horarioInicio())
+                .horarioFim(dto.horarioFim())
+                .status(dto.status() != null ? dto.status() : StatusHorario.RASCUNHO)
+                .professor(Professor.builder().id(dto.professorId()).build())
+                .turma(Turma.builder().id(dto.turmaId()).build())
+                .disciplina(Disciplina.builder().id(dto.disciplinaId()).build())
+                .ambiente(Ambiente.builder().id(dto.ambienteId()).build())
+                .build();
+
+        Horario atualizado = horarioService.atualizar(id, horario);
+        return ResponseEntity.ok(converterParaDto(atualizado));
+    }
+
     private HorarioDTO converterParaDto(Horario h) {
         return new HorarioDTO(
                 h.getId(),
