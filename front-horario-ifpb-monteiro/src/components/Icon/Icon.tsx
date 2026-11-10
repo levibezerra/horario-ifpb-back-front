@@ -15,6 +15,7 @@ export type IconName =
   | "mail"
   | "external"
   | "home"
+  | "graduation"
 
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactNode> = {
@@ -52,6 +53,12 @@ export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
       <>
         <path d="M4 19a2 2 0 0 1 2-2h14V4H6a2 2 0 0 0-2 2Z" />
         <path d="M4 6v13a2 2 0 0 0 2 2h14" />
+      </>
+    ),
+    graduation: (
+      <>
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+        <path d="M6 12v5c3 3 9 3 12 0v-5" />
       </>
     ),
     pin: (
@@ -96,6 +103,7 @@ export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
       </>
     ),
   }
+
   return (
     <svg
       width={size}

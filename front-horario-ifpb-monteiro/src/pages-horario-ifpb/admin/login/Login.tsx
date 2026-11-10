@@ -38,7 +38,7 @@ export default function Login() {
       toast.error("Verifique o e-mail e a senha.")
       return
     }
-    
+
     try {
       setLoading(true)
       const response = await api.post(API_ENDPOINTS.login, {
@@ -46,16 +46,14 @@ export default function Login() {
         senha: form.password,
       })
 
-      // Mapeamento compatível com o AuthResponseDTO do Spring Boot:
-      // (token, nome, email)
       const { token, accessToken, nome, email, administrador } = response.data
-      
+
       const jwtToken = token || accessToken
       const adminName = nome || administrador?.nome || form.email.split("@")[0]
       const adminEmail = email || administrador?.email || form.email.trim()
 
       signIn(adminName, adminEmail, jwtToken)
-      
+
       toast.success("Acesso realizado com sucesso!")
       navigate(ROUTES.adminDashboard)
     } catch (err: any) {
@@ -67,49 +65,51 @@ export default function Login() {
   }
 
   return (
-    <>
-      <div className="auth-heading">
+    <form className="auth-form" onSubmit={submit} noValidate>
+      <div className="auth-header">
         <span>ACESSO AO SISTEMA</span>
-        <h1>Área Administrativa</h1>
+        <h2>Área Administrativa</h2>
         <p>Entre com suas credenciais institucionais.</p>
       </div>
-      <form onSubmit={submit} noValidate>
-        <AuthField
-          label="E-mail"
-          icon="mail"
-          type="email"
-          value={form.email}
-          onChange={(event) => update("email", event.target.value)}
-          placeholder="nome@ifpb.edu.br"
-          error={errors.email}
-        />
-        <AuthField
-          label="Senha"
-          icon="lock"
-          type={showPassword ? "text" : "password"}
-          value={form.password}
-          onChange={(event) => update("password", event.target.value)}
-          placeholder="Digite sua senha"
-          error={errors.password}
-          action={
-            <PasswordToggle
-              visible={showPassword}
-              onToggle={() => setShowPassword((current) => !current)}
-              showLabel="Visualizar senha"
-              hideLabel="Ocultar senha"
-            />
-          }
-        />
-        <button className="auth-submit" type="submit" disabled={loading}>
-          {loading ? "Entrando..." : "Entrar"}
-        </button>
-      </form>
-      <div className="auth-switch">
+
+      <AuthField
+        label="E-mail"
+        icon="mail"
+        type="email"
+        value={form.email}
+        onChange={(event) => update("email", event.target.value)}
+        placeholder="nome@ifpb.edu.br"
+        error={errors.email}
+      />
+
+      <AuthField
+        label="Senha"
+        icon="lock"
+        type={showPassword ? "text" : "password"}
+        value={form.password}
+        onChange={(event) => update("password", event.target.value)}
+        placeholder="Digite sua senha"
+        error={errors.password}
+        action={
+          <PasswordToggle
+            visible={showPassword}
+            onToggle={() => setShowPassword((current) => !current)}
+            showLabel="Visualizar senha"
+            hideLabel="Ocultar senha"
+          />
+        }
+      />
+
+      <button className="admin-primary auth-submit" type="submit" disabled={loading}>
+        {loading ? "Entrando..." : "Entrar"}
+      </button>
+
+      <div className="auth-footer">
         <span>Ainda não possui uma conta?</span>
         <Link to={ROUTES.adminRegister} className="auth-switch-link">
           Cadastre-se
         </Link>
       </div>
-    </>
+    </form>
   )
 }

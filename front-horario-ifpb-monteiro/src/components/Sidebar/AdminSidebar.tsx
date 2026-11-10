@@ -10,7 +10,7 @@ export const ADMIN_NAV_ITEMS: {
   end?: boolean
 }[] = [
   { to: ROUTES.adminDashboard, icon: "home", label: "Visão geral", end: true },
-  { to: ROUTES.adminCourses, icon: "subjects", label: "Cursos" },
+  { to: ROUTES.adminCourses, icon: "courses", label: "Cursos" },
   { to: ROUTES.adminClasses, icon: "classes", label: "Turmas" },
   { to: ROUTES.adminSubjects, icon: "subjects", label: "Disciplinas" },
   { to: ROUTES.adminTeachers, icon: "teachers", label: "Professores" },

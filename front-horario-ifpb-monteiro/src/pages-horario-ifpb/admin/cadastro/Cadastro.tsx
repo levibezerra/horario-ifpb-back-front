@@ -7,6 +7,7 @@ import { toast } from "react-toastify"
 import Button from "@/components/Button"
 import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
+import "../login/login.css"
 
 export default function Cadastro() {
   const navigate = useNavigate()
@@ -44,7 +45,6 @@ export default function Cadastro() {
     try {
       setLoading(true)
 
-      // Chamada ajustada para a rota pública declarada no AuthController
       await api.post(`${API_ENDPOINTS.login.replace("/login", "")}/register`, {
         nome: form.name.trim(),
         email: form.email.trim(),
@@ -64,9 +64,9 @@ export default function Cadastro() {
   return (
     <form className="auth-form" onSubmit={submit} noValidate>
       <div className="auth-header">
-        <span>NOVO ACESSO</span>
-        <h2>Criar conta de administrador</h2>
-        <p>Cadastre-se para gerenciar turmas, professores, salas e horários.</p>
+        <span>ACESSO AO SISTEMA</span>
+        <h2>Criar uma conta</h2>
+        <p>Preencha os dados abaixo para cadastrar o seu perfil administrativo.</p>
       </div>
 
       <AuthField
@@ -124,7 +124,8 @@ export default function Cadastro() {
       />
 
       <div className="auth-footer">
-        Já possui acesso? <Link to={ROUTES.adminLogin}>Fazer login</Link>
+        <span>Já possui acesso?</span>
+        <Link to={ROUTES.adminLogin}>Fazer login</Link>
       </div>
     </form>
   )

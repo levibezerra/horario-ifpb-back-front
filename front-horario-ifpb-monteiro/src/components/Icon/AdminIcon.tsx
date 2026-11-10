@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 
 export type AdminIconName =
   | "home"
+  | "courses"
   | "classes"
   | "subjects"
   | "teachers"
@@ -21,8 +22,16 @@ export type AdminIconName =
   | "warning"
   | "close"
   | "menu"
+  | "graduation"
 
 export function AdminIcon({ name, size = 20 }: { name: AdminIconName; size?: number }) {
+  const graduationSvg = (
+    <>
+      <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+      <path d="M6 12v5c3 3 9 3 12 0v-5" />
+    </>
+  )
+
   const paths: Record<AdminIconName, ReactNode> = {
     home: (
       <>
@@ -30,6 +39,8 @@ export function AdminIcon({ name, size = 20 }: { name: AdminIconName; size?: num
         <path d="M5 10v10h14V10M9 20v-6h6v6" />
       </>
     ),
+    courses: graduationSvg,
+    graduation: graduationSvg,
     classes: (
       <>
         <circle cx="8" cy="8" r="3" />

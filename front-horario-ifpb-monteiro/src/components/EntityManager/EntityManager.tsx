@@ -41,7 +41,7 @@ export const entityConfig: Record<EntityKind, {
     search: "Buscar curso...",
     nameLabel: "Nome do curso",
     detailLabel: "Código do curso",
-    icon: "subjects",
+    icon: "graduation",
     endpoint: API_ENDPOINTS.cursos,
   },
   classes: {
