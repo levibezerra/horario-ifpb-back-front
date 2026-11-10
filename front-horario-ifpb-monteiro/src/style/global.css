@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+@import 'tailwindcss';
+
+:root {
+  font-family: 'DM Sans', sans-serif;
+  color: #183126;
+  background: #f3f0e9;
+  font-synthesis: none;
+  --forest: #103c2a;
+  --forest-deep: #09291c;
+  --leaf: #27a568;
+  --leaf-light: #dff2e8;
+  --paper: #fffdf8;
+  --canvas: #f3f0e9;
+  --ink: #183126;
+  --muted: #728078;
+  --line: #e2ded4;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid #79c9a2; outline-offset: 2px; }

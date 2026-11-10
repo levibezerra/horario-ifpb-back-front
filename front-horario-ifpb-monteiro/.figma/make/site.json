@@ -1,0 +1,10 @@
+{
+  "description": "Access a user-friendly digital timetable for IFPB Monteiro classes, designed for students to easily view schedules and enhance their learning experience.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
