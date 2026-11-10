@@ -23,7 +23,7 @@ public class CursoController {
     @GetMapping
     public ResponseEntity<List<CursoDTO>> listarTodos() {
         List<CursoDTO> list = service.listarTodos().stream()
-                .map(c -> new CursoDTO(c.getId(), c.getNome(), c.getCodigo()))
+                .map(c -> new CursoDTO(c.getId(), c.getNome(), c.getCodigo(), c.getModalidade()))
                 .toList();
         return ResponseEntity.ok(list);
     }
@@ -31,21 +31,30 @@ public class CursoController {
     @GetMapping("/{id}")
     public ResponseEntity<CursoDTO> buscarPorId(@PathVariable Long id) {
         Curso c = service.buscarPorId(id);
-        return ResponseEntity.ok(new CursoDTO(c.getId(), c.getNome(), c.getCodigo()));
+        return ResponseEntity.ok(new CursoDTO(c.getId(), c.getNome(), c.getCodigo(), c.getModalidade()));
     }
 
     @PostMapping
     public ResponseEntity<CursoDTO> criar(@RequestBody @Valid CursoDTO dto) {
-        Curso c = Curso.builder().nome(dto.nome()).codigo(dto.codigo()).build();
+        Curso c = Curso.builder()
+                .nome(dto.nome())
+                .codigo(dto.codigo())
+                .modalidade(dto.modalidade())
+                .build();
         Curso salvo = service.salvar(c);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new CursoDTO(salvo.getId(), salvo.getNome(), salvo.getCodigo()));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new CursoDTO(salvo.getId(), salvo.getNome(), salvo.getCodigo(), salvo.getModalidade()));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<CursoDTO> atualizar(@PathVariable Long id, @RequestBody @Valid CursoDTO dto) {
-        Curso c = Curso.builder().nome(dto.nome()).codigo(dto.codigo()).build();
+        Curso c = Curso.builder()
+                .nome(dto.nome())
+                .codigo(dto.codigo())
+                .modalidade(dto.modalidade())
+                .build();
         Curso atualizado = service.atualizar(id, c);
-        return ResponseEntity.ok(new CursoDTO(atualizado.getId(), atualizado.getNome(), atualizado.getCodigo()));
+        return ResponseEntity.ok(new CursoDTO(atualizado.getId(), atualizado.getNome(), atualizado.getCodigo(), atualizado.getModalidade()));
     }
 
     @DeleteMapping("/{id}")

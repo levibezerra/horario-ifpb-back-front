@@ -15,6 +15,11 @@ export type CategoriaAmbiente =
   | "AUDITORIO"
   | "ESPORTIVO"
 
+export type ModalidadeCurso =
+  | "INTEGRADO"
+  | "SUPERIOR"
+  | "SUBSEQUENTE"
+
 export type ReferenciaApi = {
   id: EntityId
   nome: string
@@ -28,6 +33,7 @@ export type CursoDTO = {
   id?: EntityId
   nome: string
   codigo?: string
+  modalidade: ModalidadeCurso
 }
 
 export type TurmaDTO = {

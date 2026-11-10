@@ -38,9 +38,6 @@ export function AdminTopbar({
           <AdminIcon name="edit" size={16} />
           <span>Editar perfil</span>
         </button>
-        <button onClick={onSignOut} aria-label="Sair da conta">
-          <AdminIcon name="logout" size={18} />
-        </button>
       </div>
     </header>
   )

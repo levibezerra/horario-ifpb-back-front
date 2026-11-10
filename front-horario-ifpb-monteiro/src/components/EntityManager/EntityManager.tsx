@@ -6,7 +6,7 @@ import Button from "@/components/Button"
 import InputField from "@/components/InputField"
 import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
-import type { AmbienteDTO, CategoriaAmbiente, CursoDTO, DisciplinaDTO, ProfessorDTO, TurmaDTO } from "@/types/api"
+import type { AmbienteDTO, CategoriaAmbiente, CursoDTO, DisciplinaDTO, ModalidadeCurso, ProfessorDTO, TurmaDTO } from "@/types/api"
 
 export type EntityKind = "courses" | "classes" | "subjects" | "teachers" | "rooms"
 
@@ -14,6 +14,7 @@ export type EntityRecord = {
   id: number
   name: string
   code?: string
+  modalidade?: ModalidadeCurso
   detail?: string
   email?: string
   lattesUrl?: string
@@ -40,7 +41,7 @@ export const entityConfig: Record<EntityKind, {
     plural: "cursos",
     search: "Buscar curso...",
     nameLabel: "Nome do curso",
-    detailLabel: "Código do curso",
+    detailLabel: "Código e Modalidade",
     icon: "graduation",
     endpoint: API_ENDPOINTS.cursos,
   },
@@ -97,6 +98,12 @@ const ROOM_CATEGORIES_OPTIONS: { id: CategoriaAmbiente; label: string }[] = [
   { id: "ESPORTIVO", label: "Espaço Esportivo" },
 ]
 
+const COURSE_MODALITIES_OPTIONS: { id: ModalidadeCurso; label: string }[] = [
+  { id: "INTEGRADO", label: "Técnico Integrado" },
+  { id: "SUPERIOR", label: "Ensino Superior" },
+  { id: "SUBSEQUENTE", label: "Técnico Subsequente" },
+]
+
 export function EntityManager({ kind }: { kind: EntityKind }) {
   const config = entityConfig[kind]
   const [records, setRecords] = useState<EntityRecord[]>([])
@@ -111,6 +118,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
   const [form, setForm] = useState({
     name: "",
     code: "",
+    modalidade: "INTEGRADO" as ModalidadeCurso,
     detail: "",
     email: "",
     lattesUrl: "",
@@ -131,12 +139,16 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
       }
 
       if (kind === "courses") {
-        setRecords(res.data.map((c: CursoDTO) => ({
-          id: c.id!,
-          name: c.nome,
-          code: c.codigo || "",
-          detail: c.codigo || "",
-        })))
+        setRecords(res.data.map((c: CursoDTO) => {
+          const modLabel = COURSE_MODALITIES_OPTIONS.find(m => m.id === c.modalidade)?.label || c.modalidade || "Não definida"
+          return {
+            id: c.id!,
+            name: c.nome,
+            code: c.codigo || "",
+            modalidade: c.modalidade || "INTEGRADO",
+            detail: c.codigo ? `${c.codigo} • ${modLabel}` : modLabel,
+          }
+        }))
       } else if (kind === "classes") {
         setRecords(res.data.map((t: TurmaDTO) => ({
           id: t.id!,
@@ -189,6 +201,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
       setForm({
         name: record.name,
         code: record.code || "",
+        modalidade: record.modalidade || "INTEGRADO",
         detail: record.detail || "",
         email: record.email || "",
         lattesUrl: record.lattesUrl || "",
@@ -200,6 +213,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
       setForm({
         name: "",
         code: "",
+        modalidade: "INTEGRADO",
         detail: "",
         email: "",
         lattesUrl: "",
@@ -237,7 +251,11 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
 
     try {
       if (kind === "courses") {
-        const payload: Partial<CursoDTO> = { nome: form.name.trim(), codigo: form.code.trim() }
+        const payload: Partial<CursoDTO> = { 
+          nome: form.name.trim(), 
+          codigo: form.code.trim(),
+          modalidade: form.modalidade
+        }
         if (editing) await api.put(`${config.endpoint}/${editing.id}`, payload)
         else await api.post(config.endpoint, payload)
       } else if (kind === "classes") {
@@ -388,15 +406,28 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
             />
 
             {kind === "courses" && (
-              <InputField
-                className="admin-form-field"
-                label="Código do curso *"
-                name="code"
-                value={form.code}
-                onChange={(e) => setForm((c) => ({ ...c, code: e.target.value }))}
-                placeholder="Ex: ADS, INFO, EDIF"
-                required
-              />
+              <>
+                <InputField
+                  className="admin-form-field"
+                  label="Código do curso *"
+                  name="code"
+                  value={form.code}
+                  onChange={(e) => setForm((c) => ({ ...c, code: e.target.value }))}
+                  placeholder="Ex: ADS, INFO, EDIF"
+                  required
+                />
+                <label className="admin-form-field">
+                  <span>Modalidade do curso *</span>
+                  <select 
+                    value={form.modalidade} 
+                    onChange={(e) => setForm((c) => ({ ...c, modalidade: e.target.value as ModalidadeCurso }))}
+                  >
+                    {COURSE_MODALITIES_OPTIONS.map((mod) => (
+                      <option key={mod.id} value={mod.id}>{mod.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </>
             )}
 
             {kind === "classes" && (

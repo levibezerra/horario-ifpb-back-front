@@ -48,6 +48,7 @@ public class CursoService {
 
         cursoExistente.setNome(cursoAtualizado.getNome());
         cursoExistente.setCodigo(cursoAtualizado.getCodigo());
+        cursoExistente.setModalidade(cursoAtualizado.getModalidade());
 
         return repository.save(cursoExistente);
     }

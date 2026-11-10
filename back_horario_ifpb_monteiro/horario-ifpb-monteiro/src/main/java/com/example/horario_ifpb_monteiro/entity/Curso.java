@@ -1,5 +1,6 @@
 package com.example.horario_ifpb_monteiro.entity;
 
+import com.example.horario_ifpb_monteiro.entity.Enum.ModalidadeCurso;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -19,4 +20,8 @@ public class Curso {
 
     @Column(nullable = false, unique = true, length = 20)
     private String codigo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private ModalidadeCurso modalidade;
 }
