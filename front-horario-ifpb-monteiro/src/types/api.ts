@@ -67,13 +67,15 @@ export type AmbienteDTO = {
 export type HorarioDTO = {
   id?: EntityId
   diaSemana: DiaSemana
-  horarioInicio: string // HH:mm:ss ou HH:mm
-  horarioFim: string    // HH:mm:ss ou HH:mm
+  horarioInicio: string
+  horarioFim: string
   status?: StatusHorario
   professorId: EntityId
   professorNome?: string
   turmaId: EntityId
   turmaNome?: string
+  cursoId?: EntityId       // <--- Adicionado
+  cursoNome?: string     // <--- Adicionado
   disciplinaId: EntityId
   disciplinaNome?: string
   ambienteId: EntityId
