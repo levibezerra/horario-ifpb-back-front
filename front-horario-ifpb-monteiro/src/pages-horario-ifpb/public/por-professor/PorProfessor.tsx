@@ -91,7 +91,11 @@ export default function PorProfessor() {
               course={selectedTeacher.cursosNomes?.join(" · ") || ""}
               lessons={lessons}
             />
-            <ProfessorCard name={selectedTeacher.nome} lessons={lessons} />
+            <ProfessorCard 
+              name={selectedTeacher.nome} 
+              lessons={lessons} 
+              professorData={selectedTeacher} 
+            />
             <ScheduleGrid lessons={lessons} mode="teacher" label={selectedTeacher.nome} />
           </>
         )}

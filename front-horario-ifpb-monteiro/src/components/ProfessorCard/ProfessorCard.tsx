@@ -15,6 +15,13 @@ export function ProfessorCard({ name, lessons, professorData }: ProfessorCardPro
   const classes = [...new Set(lessons.map((lesson) => lesson.className))].sort(byPtBr)
   const courses = professorData?.cursosNomes || []
 
+  // Normaliza o link do Lattes para garantir que abra em uma nova aba com protocolo completo
+  const formattedLattesUrl = professorData?.lattesUrl
+    ? professorData.lattesUrl.startsWith("http://") || professorData.lattesUrl.startsWith("https://")
+      ? professorData.lattesUrl
+      : `https://${professorData.lattesUrl}`
+    : null
+
   return (
     <section className="context-card teacher-profile">
       <div className="teacher-profile-header">
@@ -51,26 +58,32 @@ export function ProfessorCard({ name, lessons, professorData }: ProfessorCardPro
         </span>
       </div>
       <div className="teacher-profile-details">
-        <div>
-          <small>DISCIPLINAS RELACIONADAS</small>
-          <div className="profile-tags">
-            {subjects.map((subject) => (
-              <span key={subject}>{subject}</span>
-            ))}
+        {subjects.length > 0 && (
+          <div>
+            <small>DISCIPLINAS RELACIONADAS</small>
+            <div className="profile-tags">
+              {subjects.map((subject) => (
+                <span key={subject}>{subject}</span>
+              ))}
+            </div>
           </div>
-        </div>
-        <div>
-          <small>CURSOS COM AULAS NA GRADE</small>
-          <div className="profile-tags course-tags">
-            {courses.map((course) => (
-              <span key={course}>{course}</span>
-            ))}
+        )}
+        {courses.length > 0 && (
+          <div>
+            <small>CURSOS COM AULAS NA GRADE</small>
+            <div className="profile-tags course-tags">
+              {courses.map((course) => (
+                <span key={course}>{course}</span>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="teacher-classes">
-          <small>TURMAS</small>
-          <span>{classes.join(" · ")}</span>
-        </div>
+        )}
+        {classes.length > 0 && (
+          <div className="teacher-classes">
+            <small>TURMAS</small>
+            <span>{classes.join(" · ")}</span>
+          </div>
+        )}
         <div className="teacher-contact-grid">
           <div className="teacher-contact-item">
             <span className="teacher-contact-icon">
@@ -91,8 +104,8 @@ export function ProfessorCard({ name, lessons, professorData }: ProfessorCardPro
             </span>
             <span className="teacher-contact-copy">
               <small>CURRÍCULO LATTES</small>
-              {professorData?.lattesUrl ? (
-                <a href={professorData.lattesUrl} target="_blank" rel="noreferrer">
+              {formattedLattesUrl ? (
+                <a href={formattedLattesUrl} target="_blank" rel="noreferrer">
                   Acessar Currículo Lattes
                 </a>
               ) : (
