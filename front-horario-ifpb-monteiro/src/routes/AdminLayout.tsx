@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { AdminTopbar } from "@/components/Header"
 import { AdminSidebar, ADMIN_NAV_ITEMS } from "@/components/Sidebar"
 import { useAuth } from "@/hooks/useAuth"
@@ -8,11 +8,18 @@ import "@/style/admin.css"
 import { AdminProfileModal } from "@/components/AdminProfileModal"
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { adminName, adminEmail, signOut, updateProfile } = useAuth()
+  const { isAuthenticated, adminName, adminEmail, signOut, updateProfile } = useAuth()
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+
+  // Proteção da Área Administrativa: Se não estiver logado, redireciona para a tela de Login
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate(ROUTES.adminLogin, { replace: true })
+    }
+  }, [isAuthenticated, navigate])
 
   const title =
     ADMIN_NAV_ITEMS.find((item) =>
@@ -22,6 +29,11 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   function handleSignOut() {
     signOut()
     navigate(ROUTES.adminLogin)
+  }
+
+  // Não renderiza o layout enquanto redireciona
+  if (!isAuthenticated) {
+    return null
   }
 
   return (

@@ -29,10 +29,10 @@ type AdminProfile = {
 
 function loadStoredProfile(): AdminProfile {
   try {
-    const stored = window.localStorage.getItem(PROFILE_KEY)
+    const stored = window.sessionStorage.getItem(PROFILE_KEY)
     if (stored) return JSON.parse(stored) as AdminProfile
   } catch {
-    // Falha silenciosa caso o localStorage esteja desabilitado
+    // Falha silenciosa caso o sessionStorage esteja desabilitado
   }
   return { name: null, email: "" }
 }
@@ -40,34 +40,34 @@ function loadStoredProfile(): AdminProfile {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<AdminProfile>(loadStoredProfile)
   const [token, setToken] = useState<string | null>(() =>
-    window.localStorage.getItem(TOKEN_KEY),
+    window.sessionStorage.getItem(TOKEN_KEY),
   )
 
   const signIn = useCallback((name: string, email: string, accessToken: string) => {
     const newProfile = { name, email }
     setProfile(newProfile)
     setToken(accessToken)
-    window.localStorage.setItem(TOKEN_KEY, accessToken)
-    window.localStorage.setItem(PROFILE_KEY, JSON.stringify(newProfile))
+    window.sessionStorage.setItem(TOKEN_KEY, accessToken)
+    window.sessionStorage.setItem(PROFILE_KEY, JSON.stringify(newProfile))
   }, [])
 
   const signOut = useCallback(() => {
     setProfile({ name: null, email: "" })
     setToken(null)
-    window.localStorage.removeItem(TOKEN_KEY)
-    window.localStorage.removeItem(PROFILE_KEY)
+    window.sessionStorage.removeItem(TOKEN_KEY)
+    window.sessionStorage.removeItem(PROFILE_KEY)
   }, [])
 
   const updateProfile = useCallback(
     ({ name, email }: { name: string; email: string }) => {
       setProfile({ name, email })
-      window.localStorage.setItem(PROFILE_KEY, JSON.stringify({ name, email }))
+      window.sessionStorage.setItem(PROFILE_KEY, JSON.stringify({ name, email }))
     },
     [],
   )
 
   useEffect(() => {
-    const storedToken = window.localStorage.getItem(TOKEN_KEY)
+    const storedToken = window.sessionStorage.getItem(TOKEN_KEY)
     if (!storedToken) {
       signOut()
     }
