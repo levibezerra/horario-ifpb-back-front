@@ -1,7 +1,6 @@
 /**
- * Gera uma cor hexadecimal pastel de forma determinística a partir do nome da disciplina.
- * Garante que a mesma disciplina sempre tenha a mesma cor na grade e mantém
- * legibilidade ideal com texto escuro.
+ * Gera uma cor pastel bem clara e suave de forma determinística a partir do nome da disciplina.
+ * Usa HSL para garantir controle perfeito de saturação e luminosidade (tons pastéis).
  */
 export const getDisciplinaColor = (nomeDisciplina?: string | null): string => {
   if (!nomeDisciplina || typeof nomeDisciplina !== "string") {
@@ -13,14 +12,16 @@ export const getDisciplinaColor = (nomeDisciplina?: string | null): string => {
     hash = nomeDisciplina.charCodeAt(i) + ((hash << 5) - hash)
   }
 
-  // Gera componentes RGB na faixa de 130 a 230 para garantir tons pastel claros
-  const r = Math.floor(Math.abs(Math.sin(hash + 1)) * 100 + 130)
-  const g = Math.floor(Math.abs(Math.sin(hash + 2)) * 100 + 130)
-  const b = Math.floor(Math.abs(Math.sin(hash + 3)) * 100 + 130)
+  // Matiz (Hue) variando de 0 a 360 graus para dar cores diferentes por disciplina
+  const h = Math.abs(hash) % 360
+  
+  // Saturação em 55% (não fica nem muito cinza, nem excessivamente chamativa)
+  const s = 55
+  
+  // Luminosidade em 88% (garante um tom pastel bem claro, ideal para o texto escuro ler perfeitamente)
+  const l = 88
 
-  const toHex = (c: number) => c.toString(16).padStart(2, "0")
-
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+  return `hsl(${h}, ${s}%, ${l}%)`
 }
 
 export default getDisciplinaColor
