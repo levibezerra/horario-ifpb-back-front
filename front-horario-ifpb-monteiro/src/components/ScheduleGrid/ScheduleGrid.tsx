@@ -29,6 +29,17 @@ export function ScheduleGrid({
   const navigate = useNavigate()
   const [selectedLesson, setSelectedLesson] = useState<ScheduleLesson | null>(null)
 
+  // Identifica o dia da semana atual dinamicamente
+  const todayIndex = new Date().getDay()
+  const dayMap: Record<number, string> = {
+    1: "SEGUNDA",
+    2: "TERCA",
+    3: "QUARTA",
+    4: "QUINTA",
+    5: "SEXTA",
+  }
+  const currentDay = dayMap[todayIndex]
+
   const periods = useMemo(() => {
     const hasDaytimeClasses = lessons.some(
       (lesson) => toMinutes(lesson.start) < toMinutes("18:30"),
@@ -84,11 +95,21 @@ export function ScheduleGrid({
             <Icon name="clock" size={17} />
             <span>Horário</span>
           </div>
-          {DAYS.map((day) => (
-            <div className="grid-header" role="columnheader" key={day}>
-              {day}
-            </div>
-          ))}
+          
+          {DAYS.map((day) => {
+            const isToday = day === currentDay
+            return (
+              <div 
+                className={`grid-header ${isToday ? "active-day-header" : ""}`} 
+                style={isToday ? { backgroundColor: "#113822", color: "#ffffff" } : {}}
+                role="columnheader" 
+                key={day}
+              >
+                {day}
+              </div>
+            )
+          })}
+
           {periods.map((period) => (
             <div className="schedule-row" role="row" key={period.code}>
               <div className={period.break ? "time-cell break-time" : "time-cell"} role="rowheader">
@@ -127,7 +148,7 @@ export function ScheduleGrid({
                               ? `${lesson.className}${lesson.room ? ` · ${lesson.room}` : ""}`
                               : mode === "room"
                                 ? lesson.className
-                                : `${period.start}-${period.end}${lesson.room ? ` · ${lesson.room}` : ""}`}
+                                : `${period.start}–${period.end}${lesson.room ? ` · ${lesson.room}` : ""}`}
                           </small>
                         </button>
                       ))
