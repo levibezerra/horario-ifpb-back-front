@@ -8,6 +8,7 @@ import com.example.horario_ifpb_monteiro.repository.HorarioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -54,6 +55,7 @@ public class HorarioService {
     @Transactional
     public Horario salvar(Horario horario) {
         validarHorarioInicioEFim(horario);
+        validarHorarioDePausa(horario);
         validarEntidades(horario);
         validarConflitos(horario);
         return horarioRepository.save(horario);
@@ -70,12 +72,10 @@ public class HorarioService {
     @Transactional
     public void publicarHorarios(List<Long> horarioIds) {
         if (horarioIds == null || horarioIds.isEmpty()) {
-            // Se a lista vier vazia, publica todos os horários que estão como RASCUNHO
             List<Horario> rascunhos = horarioRepository.findByStatus(StatusHorario.RASCUNHO);
             rascunhos.forEach(h -> h.setStatus(StatusHorario.PUBLICADO));
             horarioRepository.saveAll(rascunhos);
         } else {
-            // Publica apenas os horários específicos passados na lista
             List<Horario> horarios = horarioRepository.findAllById(horarioIds);
             horarios.forEach(h -> h.setStatus(StatusHorario.PUBLICADO));
             horarioRepository.saveAll(horarios);
@@ -88,13 +88,50 @@ public class HorarioService {
         }
     }
 
+    private void validarHorarioDePausa(Horario horario) {
+        LocalTime inicio = horario.getHorarioInicio();
+        LocalTime fim = horario.getHorarioFim();
+
+        // Intervalos de pausa
+        LocalTime lancheManhaInicio = LocalTime.of(8, 40);
+        LocalTime lancheManhaFim = LocalTime.of(9, 0);
+
+        LocalTime lancheTardeInicio = LocalTime.of(15, 30);
+        LocalTime lancheTardeFim = LocalTime.of(15, 40);
+
+        LocalTime almocoInicio = LocalTime.of(12, 20);
+        LocalTime almocoFim = LocalTime.of(13, 0);
+
+        LocalTime jantaInicio = LocalTime.of(20, 10);
+        LocalTime jantaFim = LocalTime.of(20, 30);
+
+        if (colideComPausa(inicio, fim, lancheManhaInicio, lancheManhaFim)) {
+            throw new BusinessException("Não é permitido cadastrar aulas no horário de lanche da manhã (08:40 - 09:00).");
+        }
+
+        if (colideComPausa(inicio, fim, lancheTardeInicio, lancheTardeFim)) {
+            throw new BusinessException("Não é permitido cadastrar aulas no horário de lanche da tarde (15:30 - 15:40).");
+        }
+
+        if (colideComPausa(inicio, fim, almocoInicio, almocoFim)) {
+            throw new BusinessException("Não é permitido cadastrar aulas no horário de almoço (12:20 - 13:00).");
+        }
+
+        if (colideComPausa(inicio, fim, jantaInicio, jantaFim)) {
+            throw new BusinessException("Não é permitido cadastrar aulas no horário de janta (20:10 - 20:30).");
+        }
+    }
+
+    private boolean colideComPausa(LocalTime aulaInicio, LocalTime aulaFim, LocalTime pausaInicio, LocalTime pausaFim) {
+        return aulaInicio.isBefore(pausaFim) && aulaFim.isAfter(pausaInicio);
+    }
+
     private void validarEntidades(Horario horario) {
         Professor prof = professorService.buscarPorId(horario.getProfessor().getId());
         Turma turma = turmaService.buscarPorId(horario.getTurma().getId());
         disciplinaService.buscarPorId(horario.getDisciplina().getId());
         ambienteService.buscarPorId(horario.getAmbiente().getId());
 
-        // Valida se o professor atende ao curso dessa turma
         boolean professorPertenceAoCurso = prof.getCursos().stream()
                 .anyMatch(c -> c.getId().equals(turma.getCurso().getId()));
 
@@ -124,17 +161,14 @@ public class HorarioService {
 
     @Transactional
     public Horario atualizar (Long id, Horario horarioAtualizado) {
-
-        // Verifica se o horário existe antes de atualizar
         if (!horarioRepository.existsById(id)) {
             throw new ResourceNotFoundException("Horário com ID " + id + " não encontrado.");
         }
 
-        // Garante que o ID do objeto recebido é o mesmo do objeto que está sendo atualizadp
         horarioAtualizado.setId(id);
 
-        // Faz as devidas validações
         validarHorarioInicioEFim(horarioAtualizado);
+        validarHorarioDePausa(horarioAtualizado);
         validarEntidades(horarioAtualizado);
         validarConflitos(horarioAtualizado);
 
