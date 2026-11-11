@@ -25,6 +25,13 @@ export type ReferenciaApi = {
   nome: string
 }
 
+export type Period = {
+  code: string
+  start: string
+  end: string
+  break?: boolean
+}
+
 // ==========================================
 // DTOs de Resposta (Spring Boot / PostgreSQL)
 // ==========================================
@@ -74,8 +81,8 @@ export type HorarioDTO = {
   professorNome?: string
   turmaId: EntityId
   turmaNome?: string
-  cursoId?: EntityId       // <--- Adicionado
-  cursoNome?: string     // <--- Adicionado
+  cursoId?: EntityId       
+  cursoNome?: string     
   disciplinaId: EntityId
   disciplinaNome?: string
   ambienteId: EntityId
