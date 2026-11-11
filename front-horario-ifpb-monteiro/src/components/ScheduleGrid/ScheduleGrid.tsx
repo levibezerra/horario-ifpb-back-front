@@ -42,7 +42,11 @@ export function ScheduleGrid({
 
     return ALL_PERIODS.filter((period) => {
       if (period.break) {
-        if (period.start === "08:40" || period.start === "12:20") {
+        if (
+          period.start === "08:40" ||
+          period.start === "12:20" ||
+          period.start === "15:30"
+        ) {
           return hasDaytimeClasses
         }
         if (period.start === "20:10") return hasNightClasses
@@ -123,7 +127,7 @@ export function ScheduleGrid({
                               ? `${lesson.className}${lesson.room ? ` · ${lesson.room}` : ""}`
                               : mode === "room"
                                 ? lesson.className
-                                : `${period.start}–${period.end}${lesson.room ? ` · ${lesson.room}` : ""}`}
+                                : `${period.start}-${period.end}${lesson.room ? ` · ${lesson.room}` : ""}`}
                           </small>
                         </button>
                       ))

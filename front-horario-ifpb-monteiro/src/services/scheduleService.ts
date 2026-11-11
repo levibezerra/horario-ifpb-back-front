@@ -14,6 +14,7 @@ export const ALL_PERIODS: Period[] = [
   { code: "T1", start: "13:00", end: "13:50" },
   { code: "T2", start: "13:50", end: "14:40" },
   { code: "T3", start: "14:40", end: "15:30" },
+  { code: "INTERVALO", start: "15:30", end: "15:40", break: true },
   { code: "T4", start: "15:40", end: "16:30" },
   { code: "T5", start: "16:30", end: "17:20" },
   { code: "T6", start: "17:20", end: "18:10" },
@@ -39,6 +40,8 @@ export function overlaps(lesson: ScheduleLesson, start: string, end: string): bo
 export function getBreakTitle(start: string): string {
   switch (start) {
     case "08:40":
+      return "Intervalo para o lanche"
+    case "15:30":
       return "Intervalo para o lanche"
     case "12:20":
       return "Pausa para o almoço"
