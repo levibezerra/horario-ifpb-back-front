@@ -7,7 +7,7 @@ export const API_ENDPOINTS = {
   horarios: "/horarios",
   publicarHorarios: "/horarios/publicar",
   administradores: "/administradores",
-  meuPerfil: "/administradores/me",
+  meuPerfil: "/auth/me",
   login: "/auth/login",
   refresh: "/auth/refresh",
   logout: "/auth/logout",
