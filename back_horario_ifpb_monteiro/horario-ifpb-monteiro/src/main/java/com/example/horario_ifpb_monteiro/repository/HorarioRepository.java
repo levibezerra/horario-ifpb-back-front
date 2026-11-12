@@ -8,8 +8,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface HorarioRepository extends JpaRepository<Horario, Long> {
@@ -18,6 +20,9 @@ public interface HorarioRepository extends JpaRepository<Horario, Long> {
     List<Horario> findByProfessorId(Long professorId);
     List<Horario> findByAmbienteId(Long ambienteId);
     List<Horario> findByStatus(StatusHorario statusHorario);
+
+    @Query("SELECT MAX(h.dataAtualizacao) FROM Horario h WHERE h.status = 'PUBLICADO'")
+    Optional<LocalDateTime> findUltimaDataAtualizacaoPublicada();
 
     // Validação de choque para o Professor
     @Query("""

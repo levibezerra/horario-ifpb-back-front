@@ -8,8 +8,10 @@ import com.example.horario_ifpb_monteiro.repository.HorarioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class HorarioService {
@@ -52,10 +54,14 @@ public class HorarioService {
         return horarioRepository.findByAmbienteId(ambienteId);
     }
 
+    @Transactional(readOnly = true)
+    public Optional<LocalDateTime> buscarUltimaDataAtualizacao() {
+        return horarioRepository.findUltimaDataAtualizacaoPublicada();
+    }
+
     @Transactional
     public Horario salvar(Horario horario) {
         validarHorarioInicioEFim(horario);
-        validarHorarioDePausa(horario);
         validarEntidades(horario);
         validarConflitos(horario);
         return horarioRepository.save(horario);
@@ -71,13 +77,20 @@ public class HorarioService {
 
     @Transactional
     public void publicarHorarios(List<Long> horarioIds) {
+        LocalDateTime agora = LocalDateTime.now();
         if (horarioIds == null || horarioIds.isEmpty()) {
             List<Horario> rascunhos = horarioRepository.findByStatus(StatusHorario.RASCUNHO);
-            rascunhos.forEach(h -> h.setStatus(StatusHorario.PUBLICADO));
+            rascunhos.forEach(h -> {
+                h.setStatus(StatusHorario.PUBLICADO);
+                h.setDataAtualizacao(agora);
+            });
             horarioRepository.saveAll(rascunhos);
         } else {
             List<Horario> horarios = horarioRepository.findAllById(horarioIds);
-            horarios.forEach(h -> h.setStatus(StatusHorario.PUBLICADO));
+            horarios.forEach(h -> {
+                h.setStatus(StatusHorario.PUBLICADO);
+                h.setDataAtualizacao(agora);
+            });
             horarioRepository.saveAll(horarios);
         }
     }
@@ -88,55 +101,19 @@ public class HorarioService {
         }
     }
 
-    private void validarHorarioDePausa(Horario horario) {
-        LocalTime inicio = horario.getHorarioInicio();
-        LocalTime fim = horario.getHorarioFim();
-
-        // Intervalos de pausa
-        LocalTime lancheManhaInicio = LocalTime.of(8, 40);
-        LocalTime lancheManhaFim = LocalTime.of(9, 0);
-
-        LocalTime lancheTardeInicio = LocalTime.of(15, 30);
-        LocalTime lancheTardeFim = LocalTime.of(15, 40);
-
-        LocalTime almocoInicio = LocalTime.of(12, 20);
-        LocalTime almocoFim = LocalTime.of(13, 0);
-
-        LocalTime jantaInicio = LocalTime.of(20, 10);
-        LocalTime jantaFim = LocalTime.of(20, 30);
-
-        if (colideComPausa(inicio, fim, lancheManhaInicio, lancheManhaFim)) {
-            throw new BusinessException("Não é permitido cadastrar aulas no horário de lanche da manhã (08:40 - 09:00).");
-        }
-
-        if (colideComPausa(inicio, fim, lancheTardeInicio, lancheTardeFim)) {
-            throw new BusinessException("Não é permitido cadastrar aulas no horário de lanche da tarde (15:30 - 15:40).");
-        }
-
-        if (colideComPausa(inicio, fim, almocoInicio, almocoFim)) {
-            throw new BusinessException("Não é permitido cadastrar aulas no horário de almoço (12:20 - 13:00).");
-        }
-
-        if (colideComPausa(inicio, fim, jantaInicio, jantaFim)) {
-            throw new BusinessException("Não é permitido cadastrar aulas no horário de janta (20:10 - 20:30).");
-        }
-    }
-
-    private boolean colideComPausa(LocalTime aulaInicio, LocalTime aulaFim, LocalTime pausaInicio, LocalTime pausaFim) {
-        return aulaInicio.isBefore(pausaFim) && aulaFim.isAfter(pausaInicio);
-    }
-
     private void validarEntidades(Horario horario) {
         Professor prof = professorService.buscarPorId(horario.getProfessor().getId());
         Turma turma = turmaService.buscarPorId(horario.getTurma().getId());
         disciplinaService.buscarPorId(horario.getDisciplina().getId());
         ambienteService.buscarPorId(horario.getAmbiente().getId());
 
-        boolean professorPertenceAoCurso = prof.getCursos().stream()
-                .anyMatch(c -> c.getId().equals(turma.getCurso().getId()));
+        if (prof.getCursos() != null && !prof.getCursos().isEmpty()) {
+            boolean professorPertenceAoCurso = prof.getCursos().stream()
+                    .anyMatch(c -> c.getId().equals(turma.getCurso().getId()));
 
-        if (!prof.getCursos().isEmpty() && !professorPertenceAoCurso) {
-            throw new BusinessException("O professor selecionado não leciona no curso da turma escolhida.");
+            if (!professorPertenceAoCurso) {
+                throw new BusinessException("O professor selecionado não leciona no curso da turma escolhida.");
+            }
         }
     }
 
@@ -160,7 +137,7 @@ public class HorarioService {
     }
 
     @Transactional
-    public Horario atualizar (Long id, Horario horarioAtualizado) {
+    public Horario atualizar(Long id, Horario horarioAtualizado) {
         if (!horarioRepository.existsById(id)) {
             throw new ResourceNotFoundException("Horário com ID " + id + " não encontrado.");
         }
@@ -168,7 +145,6 @@ public class HorarioService {
         horarioAtualizado.setId(id);
 
         validarHorarioInicioEFim(horarioAtualizado);
-        validarHorarioDePausa(horarioAtualizado);
         validarEntidades(horarioAtualizado);
         validarConflitos(horarioAtualizado);
 

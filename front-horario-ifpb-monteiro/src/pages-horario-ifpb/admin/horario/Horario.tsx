@@ -80,7 +80,7 @@ export default function Horario() {
     return classes.filter((t) => t.cursoId === form.cursoId)
   }, [classes, form.cursoId])
 
-  // Ambientes filtrados pelo bloco (localizacao) selecionado
+  // Ambientes filtrados pelo bloco (localização) selecionado
   const availableRooms = useMemo(() => {
     if (!form.bloco) return rooms
     return rooms.filter((r) => {
@@ -125,6 +125,7 @@ export default function Horario() {
     } else {
       const defaultCursoId = courses[0]?.id || 0
       const defaultClasses = classes.filter((t) => t.cursoId === defaultCursoId)
+
       const defaultBloco = availableBlocos[0] || ""
       const defaultRooms = rooms.filter(
         (r) => (r.localizacao?.trim() || "Sem Bloco Definido") === defaultBloco
@@ -168,11 +169,11 @@ export default function Horario() {
 
   async function save(event: FormEvent) {
     event.preventDefault()
-    if (!form.cursoId) {
-      setError("Selecione um curso.")
+    if (!form.cursoId || form.cursoId === 0) {
+      setError("Selecione um curso válido.")
       return
     }
-    if (!form.turmaId) {
+    if (!form.turmaId || form.turmaId === 0) {
       setError("Selecione uma turma vinculada ao curso.")
       return
     }
@@ -180,11 +181,11 @@ export default function Horario() {
       setError("Selecione o bloco.")
       return
     }
-    if (!form.ambienteId) {
+    if (!form.ambienteId || form.ambienteId === 0) {
       setError("Selecione um ambiente disponível no bloco.")
       return
     }
-    if (!form.disciplinaId || !form.professorId) {
+    if (!form.disciplinaId || form.disciplinaId === 0 || !form.professorId || form.professorId === 0) {
       setError("Selecione todas as entidades obrigatórias.")
       return
     }

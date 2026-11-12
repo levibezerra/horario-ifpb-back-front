@@ -4,6 +4,7 @@ import com.example.horario_ifpb_monteiro.entity.Enum.DiaSemana;
 import com.example.horario_ifpb_monteiro.entity.Enum.StatusHorario;
 import jakarta.validation.constraints.NotNull;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 public record HorarioDTO(
@@ -28,11 +29,16 @@ public record HorarioDTO(
         Long turmaId,
         String turmaNome,
 
+        Long cursoId,
+        String cursoNome,
+
         @NotNull(message = "O ID da disciplina é obrigatório")
         Long disciplinaId,
         String disciplinaNome,
 
         @NotNull(message = "O ID do ambiente é obrigatório")
         Long ambienteId,
-        String ambienteNome
+        String ambienteNome,
+
+        LocalDateTime dataAtualizacao
 ) {}

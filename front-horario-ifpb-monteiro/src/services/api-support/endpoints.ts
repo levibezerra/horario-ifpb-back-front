@@ -11,6 +11,7 @@ export const API_ENDPOINTS = {
   login: "/auth/login",
   refresh: "/auth/refresh",
   logout: "/auth/logout",
+  ultimaAtualizacao: "/horarios/ultima-atualizacao",
 } as const
 
 export const ENDPOINTS = API_ENDPOINTS

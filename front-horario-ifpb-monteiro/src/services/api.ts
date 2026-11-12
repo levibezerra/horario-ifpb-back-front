@@ -28,7 +28,8 @@ export function setApiAuthHandlers(handlers: {
 }
 
 api.interceptors.request.use((config) => {
-  const token = authSession.getAccessToken()
+  // Garante a leitura direta do sessionStorage caso o authSession utilize a mesma chave
+  const token = window.sessionStorage.getItem("ifpb_access_token") || authSession.getAccessToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }

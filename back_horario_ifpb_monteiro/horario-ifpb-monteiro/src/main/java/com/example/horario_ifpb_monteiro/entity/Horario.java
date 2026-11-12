@@ -5,6 +5,7 @@ import com.example.horario_ifpb_monteiro.entity.Enum.StatusHorario;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 @Entity
@@ -28,6 +29,9 @@ public class Horario {
     @Column(name = "horario_fim", nullable = false)
     private LocalTime horarioFim;
 
+    @Column(name = "data_atualizacao")
+    private LocalDateTime dataAtualizacao;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
@@ -48,4 +52,10 @@ public class Horario {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ambiente_id", nullable = false)
     private Ambiente ambiente;
+
+    @PrePersist
+    @PreUpdate
+    public void onUpdate() {
+        this.dataAtualizacao = LocalDateTime.now();
+    }
 }

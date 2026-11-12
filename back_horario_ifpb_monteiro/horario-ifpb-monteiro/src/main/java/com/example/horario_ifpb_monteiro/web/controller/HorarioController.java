@@ -10,7 +10,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/horarios")
@@ -25,6 +27,13 @@ public class HorarioController {
     @GetMapping
     public ResponseEntity<List<HorarioDTO>> listarTodos() {
         return ResponseEntity.ok(horarioService.listarTodos().stream().map(this::converterParaDto).toList());
+    }
+
+    @GetMapping("/ultima-atualizacao")
+    public ResponseEntity buscarUltimaAtualizacao() {
+        return horarioService.buscarUltimaDataAtualizacao()
+                .map(data -> ResponseEntity.ok(Map.of("dataAtualizacao", data)))
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @GetMapping("/turma/{turmaId}")
@@ -73,9 +82,9 @@ public class HorarioController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<HorarioDTO> atualizar (@PathVariable Long id, @RequestBody @Valid HorarioDTO dto) {
+    public ResponseEntity<HorarioDTO> atualizar(@PathVariable Long id, @RequestBody @Valid HorarioDTO dto) {
         Horario horario = Horario.builder()
-                .id(id) // Garante que o ID da URL seja mantido
+                .id(id)
                 .diaSemana(dto.diaSemana())
                 .horarioInicio(dto.horarioInicio())
                 .horarioFim(dto.horarioFim())
@@ -91,6 +100,9 @@ public class HorarioController {
     }
 
     private HorarioDTO converterParaDto(Horario h) {
+        Long cursoId = (h.getTurma() != null && h.getTurma().getCurso() != null) ? h.getTurma().getCurso().getId() : null;
+        String cursoNome = (h.getTurma() != null && h.getTurma().getCurso() != null) ? h.getTurma().getCurso().getNome() : null;
+
         return new HorarioDTO(
                 h.getId(),
                 h.getDiaSemana(),
@@ -101,10 +113,13 @@ public class HorarioController {
                 h.getProfessor().getNome(),
                 h.getTurma().getId(),
                 h.getTurma().getNome(),
+                h.getTurma().getCurso() != null ? h.getTurma().getCurso().getId() : null,
+                h.getTurma().getCurso() != null ? h.getTurma().getCurso().getNome() : null,
                 h.getDisciplina().getId(),
                 h.getDisciplina().getNome(),
                 h.getAmbiente().getId(),
-                h.getAmbiente().getNome()
+                h.getAmbiente().getNome(),
+                h.getDataAtualizacao()
         );
     }
 }
