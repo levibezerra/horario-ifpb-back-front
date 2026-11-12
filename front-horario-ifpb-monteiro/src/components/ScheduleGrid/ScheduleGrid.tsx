@@ -12,12 +12,16 @@ import {
 } from "@/services/scheduleService"
 import { getDisciplinaColor } from "@/utils/colorGenerator"
 import { LessonModal } from "./LessonModal"
+import { AdminLessonModal } from "./AdminLessonModal"
 
 type ScheduleGridProps = {
   lessons: ScheduleLesson[]
   mode: ViewMode
   label: string
   showEmptyPeriods?: boolean
+  isAdmin?: boolean
+  onEditLesson?: (lessonId: string) => void
+  onDeleteLesson?: (lessonId: string) => Promise<void> | void
 }
 
 export function ScheduleGrid({
@@ -25,11 +29,13 @@ export function ScheduleGrid({
   mode,
   label,
   showEmptyPeriods = false,
+  isAdmin = false,
+  onEditLesson,
+  onDeleteLesson,
 }: ScheduleGridProps) {
   const navigate = useNavigate()
   const [selectedLesson, setSelectedLesson] = useState<ScheduleLesson | null>(null)
 
-  // Identifica o dia da semana atual dinamicamente
   const todayIndex = new Date().getDay()
   const dayMap: Record<number, string> = {
     1: "SEGUNDA",
@@ -83,7 +89,11 @@ export function ScheduleGrid({
       )}
       <div className="grid-help">
         <Icon name="info" size={16} />
-        <span>Selecione uma aula para ver seus detalhes.</span>
+        <span>
+          {isAdmin
+            ? "Selecione uma aula para editar ou excluir o bloco."
+            : "Selecione uma aula para ver seus detalhes."}
+        </span>
         <span className="legend">
           <i className="occupied" /> Aula <i className="break-legend" /> Intervalo <i className="free" /> Sem aula
         </span>
@@ -95,14 +105,14 @@ export function ScheduleGrid({
             <Icon name="clock" size={17} />
             <span>Horário</span>
           </div>
-          
+
           {DAYS.map((day) => {
             const isToday = day === currentDay
             return (
-              <div 
-                className={`grid-header ${isToday ? "active-day-header" : ""}`} 
+              <div
+                className={`grid-header ${isToday ? "active-day-header" : ""}`}
                 style={isToday ? { backgroundColor: "#113822", color: "#ffffff" } : {}}
-                role="columnheader" 
+                role="columnheader"
                 key={day}
               >
                 {day}
@@ -138,7 +148,7 @@ export function ScheduleGrid({
                           className="lesson-block"
                           style={{ backgroundColor: getDisciplinaColor(lesson.subject) }}
                           onClick={() => setSelectedLesson(lesson)}
-                          key={`${lesson.className}-${lesson.day}-${lesson.start}-${lesson.subject}`}
+                          key={`${lesson.id ?? lesson.className}-${lesson.day}-${lesson.start}-${lesson.subject}`}
                         >
                           <strong>{lesson.subject}</strong>
                           <span>{lesson.teacher}</span>
@@ -165,7 +175,16 @@ export function ScheduleGrid({
         </div>
       </div>
 
-      {selectedLesson && (
+      {selectedLesson && isAdmin && onEditLesson && onDeleteLesson && (
+        <AdminLessonModal
+          lesson={selectedLesson}
+          onClose={() => setSelectedLesson(null)}
+          onEdit={onEditLesson}
+          onDelete={onDeleteLesson}
+        />
+      )}
+
+      {selectedLesson && !isAdmin && (
         <LessonModal
           lesson={selectedLesson}
           onClose={() => setSelectedLesson(null)}

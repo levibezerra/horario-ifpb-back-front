@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from "react"
 import { AdminIcon, type AdminIconName } from "@/components/Icon"
 import { ScheduleGrid, ScheduleHeading } from "@/components/ScheduleGrid"
+import { ScheduleFormModal } from "@/components/ScheduleFormModal"
 import { useNavigate } from "react-router-dom"
 import { ROUTES } from "@/routes/paths"
-import type { AmbienteDTO, DisciplinaDTO, HorarioDTO, ProfessorDTO, ScheduleLesson, TurmaDTO } from "@/types/api"
+import type {
+  AmbienteDTO,
+  CursoDTO,
+  DisciplinaDTO,
+  HorarioDTO,
+  ProfessorDTO,
+  ScheduleLesson,
+  TurmaDTO,
+} from "@/types/api"
 import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import "./dashboard.css"
@@ -11,20 +20,24 @@ import { toast } from "react-toastify"
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const [courses, setCourses] = useState<CursoDTO[]>([])
   const [classes, setClasses] = useState<TurmaDTO[]>([])
   const [subjects, setSubjects] = useState<DisciplinaDTO[]>([])
   const [teachers, setTeachers] = useState<ProfessorDTO[]>([])
   const [rooms, setRooms] = useState<AmbienteDTO[]>([])
   const [schedules, setSchedules] = useState<HorarioDTO[]>([])
-  
+
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null)
   const [publishConfirmation, setPublishConfirmation] = useState(false)
+  const [editingSchedule, setEditingSchedule] = useState<HorarioDTO | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const fetchData = async () => {
     try {
       setLoading(true)
-      const [resClasses, resSubjects, resTeachers, resRooms, resSchedules] = await Promise.all([
+      const [resCourses, resClasses, resSubjects, resTeachers, resRooms, resSchedules] = await Promise.all([
+        api.get<CursoDTO[]>(API_ENDPOINTS.cursos),
         api.get<TurmaDTO[]>(API_ENDPOINTS.turmas),
         api.get<DisciplinaDTO[]>(API_ENDPOINTS.disciplinas),
         api.get<ProfessorDTO[]>(API_ENDPOINTS.professores),
@@ -32,6 +45,7 @@ export default function Dashboard() {
         api.get<HorarioDTO[]>(API_ENDPOINTS.horarios),
       ])
 
+      setCourses(resCourses.data)
       setClasses(resClasses.data)
       setSubjects(resSubjects.data)
       setTeachers(resTeachers.data)
@@ -65,6 +79,27 @@ export default function Dashboard() {
       toast.error(err.response?.data?.message || "Erro ao publicar horários.")
     } finally {
       setPublishConfirmation(false)
+    }
+  }
+
+  const handleEditLesson = (lessonId: string) => {
+    const targetSchedule = schedules.find((s) => s.id === Number(lessonId))
+    if (targetSchedule) {
+      setEditingSchedule(targetSchedule)
+      setFormOpen(true)
+    } else {
+      toast.error("Bloco de horário não encontrado.")
+    }
+  }
+
+  const handleDeleteLesson = async (lessonId: string) => {
+    try {
+      await api.delete(`${API_ENDPOINTS.horarios}/${lessonId}`)
+      toast.success("Horário excluído com sucesso!")
+      await fetchData()
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Erro ao excluir horário.")
+      throw err
     }
   }
 
@@ -147,12 +182,34 @@ export default function Dashboard() {
         {selectedClass ? (
           <>
             <ScheduleHeading mode="class" selected={selectedClass.nome} course={selectedClass.cursoNome || ""} lessons={selectedLessons} />
-            <ScheduleGrid lessons={selectedLessons} mode="class" label={selectedClass.nome} />
+            <ScheduleGrid
+              lessons={selectedLessons}
+              mode="class"
+              label={selectedClass.nome}
+              isAdmin
+              onEditLesson={handleEditLesson}
+              onDeleteLesson={handleDeleteLesson}
+            />
           </>
         ) : (
           <p>{loading ? "Carregando turmas..." : "Nenhuma turma cadastrada."}</p>
         )}
       </section>
+
+      <ScheduleFormModal
+        open={formOpen}
+        editing={editingSchedule}
+        courses={courses}
+        classes={classes}
+        subjects={subjects}
+        teachers={teachers}
+        rooms={rooms}
+        onClose={() => {
+          setFormOpen(false)
+          setEditingSchedule(null)
+        }}
+        onSaved={fetchData}
+      />
 
       {publishConfirmation && (
         <div className="admin-modal-layer" role="alertdialog" aria-modal="true" aria-labelledby="publish-title">

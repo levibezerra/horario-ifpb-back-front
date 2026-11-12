@@ -53,6 +53,8 @@ export type TurmaDTO = {
 export type DisciplinaDTO = {
   id?: EntityId
   nome: string
+  cursoId?: EntityId
+  cursoNome?: string
 }
 
 export type ProfessorDTO = {
