@@ -40,9 +40,14 @@ export default function PorAmbiente() {
   }, [])
 
   const roomsInCategory = useMemo(() => {
+    const q = query.toLocaleLowerCase("pt-BR")
     return rooms
       .filter((room) => room.categoria === category)
-      .filter((room) => room.nome.toLocaleLowerCase("pt-BR").includes(query.toLocaleLowerCase("pt-BR")))
+      .filter(
+        (room) =>
+          room.nome.toLocaleLowerCase("pt-BR").includes(q) ||
+          (room.localizacao || "").toLocaleLowerCase("pt-BR").includes(q)
+      )
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
   }, [category, query, rooms])
 
@@ -78,13 +83,30 @@ export default function PorAmbiente() {
   }, [schedules, selectedRoomId])
 
   const activeCategoryObj = ROOM_CATEGORIES.find((item) => item.id === category)!
-  const groups = [
-    {
-      group: activeCategoryObj.label,
-      caption: activeCategoryObj.caption,
-      items: roomsInCategory.map((room) => ({ id: String(room.id), label: room.nome })),
-    },
-  ]
+
+  // Agrupa os ambientes da categoria atual pelo Bloco / Localização
+  const groups = useMemo(() => {
+    const groupsMap = new Map<string, { id: string; label: string }[]>()
+
+    roomsInCategory.forEach((room) => {
+      const blocoName = room.localizacao?.trim() || "Bloco não informado"
+      if (!groupsMap.has(blocoName)) {
+        groupsMap.set(blocoName, [])
+      }
+      groupsMap.get(blocoName)!.push({
+        id: String(room.id),
+        label: room.nome,
+      })
+    })
+
+    return Array.from(groupsMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b, "pt-BR"))
+      .map(([blocoName, items]) => ({
+        group: blocoName,
+        caption: activeCategoryObj.label,
+        items,
+      }))
+  }, [roomsInCategory, activeCategoryObj.label])
 
   return (
     <div className="workspace">
@@ -122,7 +144,16 @@ export default function PorAmbiente() {
         />
         {selectedRoom ? (
           <>
-            <ScheduleHeading mode="room" selected={selectedRoom.nome} course={activeCategoryObj.label} lessons={lessons} />
+            <ScheduleHeading
+              mode="room"
+              selected={selectedRoom.nome}
+              course={
+                selectedRoom.localizacao
+                  ? `${activeCategoryObj.label} · ${selectedRoom.localizacao}`
+                  : activeCategoryObj.label
+              }
+              lessons={lessons}
+            />
             <section className="context-card room-profile">
               <span className="room-icon"><Icon name="room" size={24} /></span>
               <div>

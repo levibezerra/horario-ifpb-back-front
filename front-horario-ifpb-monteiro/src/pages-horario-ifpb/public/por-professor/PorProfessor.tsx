@@ -32,7 +32,10 @@ export default function PorProfessor() {
     loadData()
   }, [])
 
-  const selectedTeacher = useMemo(() => teachers.find((t) => t.id === selectedProfId), [teachers, selectedProfId])
+  const selectedTeacher = useMemo(
+    () => teachers.find((t) => t.id === selectedProfId),
+    [teachers, selectedProfId]
+  )
 
   const lessons: ScheduleLesson[] = useMemo(() => {
     if (!selectedProfId) return []
@@ -53,16 +56,48 @@ export default function PorProfessor() {
       }))
   }, [schedules, selectedProfId])
 
+  // Agrupa os professores pelos cursos aos quais estão vinculados
   const filteredGroups = useMemo(() => {
     const q = query.toLocaleLowerCase("pt-BR")
-    const filtered = teachers.filter((t) => t.nome.toLocaleLowerCase("pt-BR").includes(q))
-    return [
-      {
-        group: "Docentes",
-        caption: "Corpo docente",
-        items: filtered.map((t) => ({ id: String(t.id), label: t.nome })),
-      },
-    ]
+
+    // Filtra por nome do professor ou nome de algum curso vinculado
+    const filteredTeachers = teachers.filter(
+      (t) =>
+        t.nome.toLocaleLowerCase("pt-BR").includes(q) ||
+        (t.cursosNomes ?? []).some((c) => c.toLocaleLowerCase("pt-BR").includes(q))
+    )
+
+    const groupsMap = new Map<string, { id: string; label: string }[]>()
+
+    filteredTeachers.forEach((professor) => {
+      const cursos =
+        professor.cursosNomes && professor.cursosNomes.length > 0
+          ? professor.cursosNomes
+          : ["Outros Cursos"]
+
+      cursos.forEach((courseName) => {
+        // Caso o usuário tenha pesquisado pelo nome específico de um curso,
+        // exibe o professor apenas dentro do(s) curso(s) que correspondem à busca (ou todos se a busca bateu no nome do docente)
+        const matchesTeacherName = professor.nome.toLocaleLowerCase("pt-BR").includes(q)
+        const matchesCourseName = courseName.toLocaleLowerCase("pt-BR").includes(q)
+
+        if (!q || matchesTeacherName || matchesCourseName) {
+          if (!groupsMap.has(courseName)) {
+            groupsMap.set(courseName, [])
+          }
+          groupsMap.get(courseName)!.push({
+            id: String(professor.id),
+            label: professor.nome,
+          })
+        }
+      })
+    })
+
+    return Array.from(groupsMap.entries()).map(([courseName, items]) => ({
+      group: courseName,
+      caption: "Corpo docente",
+      items,
+    }))
   }, [teachers, query])
 
   return (
@@ -91,10 +126,10 @@ export default function PorProfessor() {
               course={selectedTeacher.cursosNomes?.join(" · ") || ""}
               lessons={lessons}
             />
-            <ProfessorCard 
-              name={selectedTeacher.nome} 
-              lessons={lessons} 
-              professorData={selectedTeacher} 
+            <ProfessorCard
+              name={selectedTeacher.nome}
+              lessons={lessons}
+              professorData={selectedTeacher}
             />
             <ScheduleGrid lessons={lessons} mode="teacher" label={selectedTeacher.nome} />
           </>
