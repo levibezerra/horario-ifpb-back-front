@@ -64,13 +64,12 @@ export function ScheduleFormModal({
 
   const availableClasses = useMemo(() => {
     if (!form.cursoId) return []
-    return classes.filter((t) => t.cursoId === form.cursoId)
+    return classes.filter((t) => Number(t.cursoId) === Number(form.cursoId))
   }, [classes, form.cursoId])
 
   const availableSubjects = useMemo(() => {
-    if (!form.cursoId) return subjects
-    const courseSubjects = subjects.filter((s) => s.cursoId === form.cursoId)
-    return courseSubjects.length > 0 ? courseSubjects : subjects.filter((s) => !s.cursoId)
+    if (!form.cursoId) return []
+    return subjects.filter((s) => Number(s.cursoId) === Number(form.cursoId))
   }, [subjects, form.cursoId])
 
   const availableRooms = useMemo(() => {
@@ -85,28 +84,27 @@ export function ScheduleFormModal({
     if (!open) return
 
     if (editing) {
-      const targetTurma = classes.find((t) => t.id === editing.turmaId)
-      const initialCursoId = editing.cursoId || targetTurma?.cursoId || courses[0]?.id || 0
+      const targetTurma = classes.find((t) => Number(t.id) === Number(editing.turmaId))
+      const initialCursoId = Number(editing.cursoId || targetTurma?.cursoId || courses[0]?.id || 0)
 
-      const targetRoom = rooms.find((r) => r.id === editing.ambienteId)
+      const targetRoom = rooms.find((r) => Number(r.id) === Number(editing.ambienteId))
       const initialBloco = targetRoom?.localizacao?.trim() || availableBlocos[0] || ""
 
       setForm({
         cursoId: initialCursoId,
-        turmaId: editing.turmaId,
-        disciplinaId: editing.disciplinaId,
-        professorId: editing.professorId,
+        turmaId: Number(editing.turmaId),
+        disciplinaId: Number(editing.disciplinaId),
+        professorId: Number(editing.professorId),
         bloco: initialBloco,
-        ambienteId: editing.ambienteId,
+        ambienteId: Number(editing.ambienteId),
         diaSemana: editing.diaSemana,
         horarioInicio: editing.horarioInicio.substring(0, 5),
         horarioFim: editing.horarioFim.substring(0, 5),
       })
     } else {
-      const defaultCursoId = courses[0]?.id || 0
-      const defaultClasses = classes.filter((t) => t.cursoId === defaultCursoId)
-      const courseSubjects = subjects.filter((s) => s.cursoId === defaultCursoId)
-      const defaultSubjects = courseSubjects.length > 0 ? courseSubjects : subjects
+      const defaultCursoId = Number(courses[0]?.id || 0)
+      const defaultClasses = classes.filter((t) => Number(t.cursoId) === defaultCursoId)
+      const defaultSubjects = subjects.filter((s) => Number(s.cursoId) === defaultCursoId)
 
       const defaultBloco = availableBlocos[0] || ""
       const defaultRooms = rooms.filter(
@@ -115,11 +113,11 @@ export function ScheduleFormModal({
 
       setForm({
         cursoId: defaultCursoId,
-        turmaId: defaultClasses[0]?.id || 0,
-        disciplinaId: defaultSubjects[0]?.id || 0,
-        professorId: teachers[0]?.id || 0,
+        turmaId: Number(defaultClasses[0]?.id || 0),
+        disciplinaId: Number(defaultSubjects[0]?.id || 0),
+        professorId: Number(teachers[0]?.id || 0),
         bloco: defaultBloco,
-        ambienteId: defaultRooms[0]?.id || rooms[0]?.id || 0,
+        ambienteId: Number(defaultRooms[0]?.id || rooms[0]?.id || 0),
         diaSemana: "SEGUNDA",
         horarioInicio: "07:30",
         horarioFim: "08:20",
@@ -131,15 +129,14 @@ export function ScheduleFormModal({
   if (!open) return null
 
   function handleCursoChange(cursoId: number) {
-    const courseClasses = classes.filter((t) => t.cursoId === cursoId)
-    const courseSubjects = subjects.filter((s) => s.cursoId === cursoId)
-    const validSubjects = courseSubjects.length > 0 ? courseSubjects : subjects.filter((s) => !s.cursoId)
+    const courseClasses = classes.filter((t) => Number(t.cursoId) === Number(cursoId))
+    const courseSubjects = subjects.filter((s) => Number(s.cursoId) === Number(cursoId))
 
     setForm((prev) => ({
       ...prev,
       cursoId,
-      turmaId: courseClasses[0]?.id || 0,
-      disciplinaId: validSubjects[0]?.id || 0,
+      turmaId: Number(courseClasses[0]?.id || 0),
+      disciplinaId: Number(courseSubjects[0]?.id || 0),
     }))
   }
 
@@ -150,7 +147,7 @@ export function ScheduleFormModal({
     setForm((prev) => ({
       ...prev,
       bloco,
-      ambienteId: filteredRooms[0]?.id || 0,
+      ambienteId: Number(filteredRooms[0]?.id || 0),
     }))
   }
 

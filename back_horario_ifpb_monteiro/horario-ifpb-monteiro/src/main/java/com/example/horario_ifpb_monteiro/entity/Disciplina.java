@@ -16,4 +16,8 @@ public class Disciplina {
 
     @Column(nullable = false, length = 100)
     private String nome;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "curso_id", nullable = false)
+    private Curso curso;
 }

@@ -63,7 +63,7 @@ export const entityConfig: Record<EntityKind, {
     plural: "disciplinas",
     search: "Buscar disciplina...",
     nameLabel: "Nome da disciplina",
-    detailLabel: "",
+    detailLabel: "Curso vinculado",
     icon: "subjects",
     endpoint: API_ENDPOINTS.disciplinas,
   },
@@ -133,9 +133,11 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
       setLoading(true)
       const res = await api.get(config.endpoint)
 
-      if (kind === "classes" || kind === "teachers") {
+      let loadedCourses: CursoDTO[] = []
+      if (kind === "classes" || kind === "subjects" || kind === "teachers") {
         const coursesRes = await api.get<CursoDTO[]>(API_ENDPOINTS.cursos)
-        setAvailableCourses(coursesRes.data)
+        loadedCourses = coursesRes.data
+        setAvailableCourses(loadedCourses)
       }
 
       if (kind === "courses") {
@@ -146,20 +148,22 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
             name: c.nome,
             code: c.codigo || "",
             modalidade: c.modalidade || "INTEGRADO",
-            detail: c.codigo ? `${c.codigo} • ${modLabel}` : modLabel,
+            detail: c.codigo ? `${c.codigo} — ${modLabel}` : modLabel,
           }
         }))
       } else if (kind === "classes") {
         setRecords(res.data.map((t: TurmaDTO) => ({
           id: t.id!,
           name: t.nome,
-          detail: t.cursoNome || "",
+          detail: t.cursoNome || loadedCourses.find(c => c.id === t.cursoId)?.nome || "",
           cursoId: t.cursoId,
         })))
       } else if (kind === "subjects") {
         setRecords(res.data.map((d: DisciplinaDTO) => ({
           id: d.id!,
           name: d.nome,
+          detail: d.cursoNome || loadedCourses.find(c => c.id === d.cursoId)?.nome || "",
+          cursoId: d.cursoId,
         })))
       } else if (kind === "teachers") {
         setRecords(res.data.map((p: ProfessorDTO) => ({
@@ -236,7 +240,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
       setError("Informe o código do curso.")
       return
     }
-    if (kind === "classes" && !form.cursoId) {
+    if ((kind === "classes" || kind === "subjects") && !form.cursoId) {
       setError("Selecione o curso vinculado.")
       return
     }
@@ -251,10 +255,10 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
 
     try {
       if (kind === "courses") {
-        const payload: Partial<CursoDTO> = { 
-          nome: form.name.trim(), 
+        const payload: Partial<CursoDTO> = {
+          nome: form.name.trim(),
           codigo: form.code.trim(),
-          modalidade: form.modalidade
+          modalidade: form.modalidade,
         }
         if (editing) await api.put(`${config.endpoint}/${editing.id}`, payload)
         else await api.post(config.endpoint, payload)
@@ -263,7 +267,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
         if (editing) await api.put(`${config.endpoint}/${editing.id}`, payload)
         else await api.post(config.endpoint, payload)
       } else if (kind === "subjects") {
-        const payload: Partial<DisciplinaDTO> = { nome: form.name.trim() }
+        const payload: Partial<DisciplinaDTO> = { nome: form.name.trim(), cursoId: form.cursoId }
         if (editing) await api.put(`${config.endpoint}/${editing.id}`, payload)
         else await api.post(config.endpoint, payload)
       } else if (kind === "teachers") {
@@ -418,8 +422,8 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
                 />
                 <label className="admin-form-field">
                   <span>Modalidade do curso *</span>
-                  <select 
-                    value={form.modalidade} 
+                  <select
+                    value={form.modalidade}
                     onChange={(e) => setForm((c) => ({ ...c, modalidade: e.target.value as ModalidadeCurso }))}
                   >
                     {COURSE_MODALITIES_OPTIONS.map((mod) => (
@@ -430,13 +434,19 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
               </>
             )}
 
-            {kind === "classes" && (
+            {(kind === "classes" || kind === "subjects") && (
               <label className="admin-form-field">
                 <span>Curso vinculado *</span>
                 <select value={form.cursoId} onChange={(e) => setForm((c) => ({ ...c, cursoId: Number(e.target.value) }))}>
-                  {availableCourses.map((course) => (
-                    <option key={course.id} value={course.id}>{course.nome}</option>
-                  ))}
+                  {availableCourses.length === 0 ? (
+                    <option value={0}>Nenhum curso cadastrado</option>
+                  ) : (
+                    availableCourses.map((course) => (
+                      <option key={course.id} value={course.id}>
+                        {course.codigo ? `${course.nome} (${course.codigo})` : course.nome}
+                      </option>
+                    ))
+                  )}
                 </select>
               </label>
             )}
