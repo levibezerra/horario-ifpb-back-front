@@ -15,6 +15,18 @@ type PrintDocument = {
   lessons: ScheduleLesson[]
 }
 
+function compareNaturalPtBr(a: string, b: string) {
+  return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
+}
+
+function compareClassesByCourseAndPeriod(a: TurmaDTO, b: TurmaDTO) {
+  const courseA = a.cursoNome || "Outros Cursos"
+  const courseB = b.cursoNome || "Outros Cursos"
+  const courseDiff = compareNaturalPtBr(courseA, courseB)
+  if (courseDiff !== 0) return courseDiff
+  return compareNaturalPtBr(a.nome, b.nome)
+}
+
 export default function ImpressaoHorarios() {
   const { search } = useLocation()
   const params = new URLSearchParams(search)
@@ -61,7 +73,7 @@ export default function ImpressaoHorarios() {
     if (kind === "professor" || kind === "professores") {
       const selectedTeachers = kind === "professor"
         ? teachers.filter((t) => String(t.id) === value || t.nome === value)
-        : [...teachers].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+        : [...teachers].sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
 
       return selectedTeachers.map((teacher) => {
         const lessons = schedules.filter((item) => item.professorId === teacher.id).map(toLesson)
@@ -78,8 +90,10 @@ export default function ImpressaoHorarios() {
     const selectedClasses = kind === "turma"
       ? classes.filter((c) => String(c.id) === value || c.nome === value)
       : kind === "curso"
-        ? classes.filter((c) => c.cursoNome === value)
-        : [...classes].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+        ? classes
+            .filter((c) => c.cursoNome === value)
+            .sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
+        : [...classes].sort(compareClassesByCourseAndPeriod)
 
     return selectedClasses.map((item) => ({
       id: `class-${item.id}`,
@@ -122,17 +136,28 @@ export default function ImpressaoHorarios() {
         <h1>{title}</h1>
         <p>Grade semanal oficial para consulta e organização acadêmica.</p>
       </header>
-      {documents.map((doc, index) => (
-        <section className="print-class-section" key={doc.id}>
-          {kind === "professores" && (
-            <div className="print-course-divider teacher-divider">
-              <span>PROFESSOR</span><strong>{doc.name}</strong><small>{doc.detail}</small>
-            </div>
-          )}
-          <ScheduleHeading mode={doc.mode} selected={doc.name} course={doc.detail} lessons={doc.lessons} />
-          <ScheduleGrid lessons={doc.lessons} mode={doc.mode} label={doc.name} />
-        </section>
-      ))}
+      {documents.map((doc, index) => {
+        const previousDoc = index > 0 ? documents[index - 1] : null
+        const showCourseDivider =
+          kind === "campus" && doc.detail && doc.detail !== previousDoc?.detail
+
+        return (
+          <section className="print-class-section" key={doc.id}>
+            {showCourseDivider && (
+              <div className="print-course-divider">
+                <span>CURSO</span><strong>{doc.detail}</strong>
+              </div>
+            )}
+            {kind === "professores" && (
+              <div className="print-course-divider teacher-divider">
+                <span>PROFESSOR</span><strong>{doc.name}</strong><small>{doc.detail}</small>
+              </div>
+            )}
+            <ScheduleHeading mode={doc.mode} selected={doc.name} course={doc.detail} lessons={doc.lessons} />
+            <ScheduleGrid lessons={doc.lessons} mode={doc.mode} label={doc.name} />
+          </section>
+        )
+      })}
       {!documents.length && (
         <div className="print-empty">
           <strong>Nenhum horário encontrado</strong>

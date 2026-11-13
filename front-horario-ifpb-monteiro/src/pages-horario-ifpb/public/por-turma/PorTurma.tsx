@@ -7,6 +7,10 @@ import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import "./por-turma.css"
 
+function compareNaturalPtBr(a: string, b: string) {
+  return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
+}
+
 export default function PorTurma() {
   const panel = useFilterPanel()
   const [courses, setCourses] = useState<CursoDTO[]>([])
@@ -23,10 +27,23 @@ export default function PorTurma() {
           api.get<TurmaDTO[]>(API_ENDPOINTS.turmas),
           api.get<HorarioDTO[]>(API_ENDPOINTS.horarios),
         ])
-        setCourses(resCourses.data)
-        setClasses(resClasses.data)
+
+        const sortedCourses = [...resCourses.data].sort((a, b) =>
+          compareNaturalPtBr(a.nome, b.nome)
+        )
+
+        const sortedClasses = [...resClasses.data].sort((a, b) => {
+          const courseA = a.cursoNome || sortedCourses.find((c) => c.id === a.cursoId)?.nome || "Outros Cursos"
+          const courseB = b.cursoNome || sortedCourses.find((c) => c.id === b.cursoId)?.nome || "Outros Cursos"
+          const courseDiff = compareNaturalPtBr(courseA, courseB)
+          if (courseDiff !== 0) return courseDiff
+          return compareNaturalPtBr(a.nome, b.nome)
+        })
+
+        setCourses(sortedCourses)
+        setClasses(sortedClasses)
         setSchedules(resSchedules.data.filter((h) => h.status === "PUBLICADO"))
-        if (resClasses.data.length > 0) setSelectedTurmaId(resClasses.data[0].id!)
+        if (sortedClasses.length > 0) setSelectedTurmaId(sortedClasses[0].id!)
       } catch (err) {
         console.error("Erro ao carregar consulta por turma", err)
       }
@@ -34,7 +51,10 @@ export default function PorTurma() {
     loadData()
   }, [])
 
-  const selectedTurma = useMemo(() => classes.find((c) => c.id === selectedTurmaId), [classes, selectedTurmaId])
+  const selectedTurma = useMemo(
+    () => classes.find((c) => c.id === selectedTurmaId),
+    [classes, selectedTurmaId]
+  )
 
   const lessons: ScheduleLesson[] = useMemo(() => {
     if (!selectedTurmaId) return []
@@ -55,34 +75,41 @@ export default function PorTurma() {
       }))
   }, [schedules, selectedTurmaId])
 
-  // Agrupa as turmas por curso
+  // Agrupa e ordena os cursos e as turmas em ordem natural (1º, 2º, 3º... A, B)
   const filteredGroups = useMemo(() => {
     const q = query.toLocaleLowerCase("pt-BR")
-    
-    // Filtra as turmas pela busca (por nome da turma ou pelo nome do curso)
-    const filteredClasses = classes.filter((c) => 
-      c.nome.toLocaleLowerCase("pt-BR").includes(q) ||
-      (c.cursoNome || "").toLocaleLowerCase("pt-BR").includes(q)
-    )
 
-    // Agrupamento por curso
+    const filteredClasses = classes.filter((c) => {
+      const courseName =
+        c.cursoNome || courses.find((course) => course.id === c.cursoId)?.nome || "Outros Cursos"
+      return (
+        c.nome.toLocaleLowerCase("pt-BR").includes(q) ||
+        courseName.toLocaleLowerCase("pt-BR").includes(q)
+      )
+    })
+
     const groupsMap = new Map<string, { id: string; label: string }[]>()
 
     filteredClasses.forEach((turma) => {
-      const courseName = turma.cursoNome || "Outros Cursos"
+      const courseName =
+        turma.cursoNome ||
+        courses.find((course) => course.id === turma.cursoId)?.nome ||
+        "Outros Cursos"
+
       if (!groupsMap.has(courseName)) {
         groupsMap.set(courseName, [])
       }
       groupsMap.get(courseName)!.push({ id: String(turma.id), label: turma.nome })
     })
 
-    // Mapeia para o formato esperado pelo FilterSidebar
-    return Array.from(groupsMap.entries()).map(([courseName, items]) => ({
-      group: courseName,
-      caption: "Turmas ofertadas",
-      items,
-    }))
-  }, [classes, query])
+    return Array.from(groupsMap.entries())
+      .sort(([courseA], [courseB]) => compareNaturalPtBr(courseA, courseB))
+      .map(([courseName, items]) => ({
+        group: courseName,
+        caption: "Turmas ofertadas",
+        items: [...items].sort((a, b) => compareNaturalPtBr(a.label, b.label)),
+      }))
+  }, [classes, courses, query])
 
   return (
     <div className="workspace">
@@ -107,7 +134,11 @@ export default function PorTurma() {
             <ScheduleHeading
               mode="class"
               selected={selectedTurma.nome}
-              course={selectedTurma.cursoNome || ""}
+              course={
+                selectedTurma.cursoNome ||
+                courses.find((c) => c.id === selectedTurma.cursoId)?.nome ||
+                ""
+              }
               lessons={lessons}
             />
             <ScheduleGrid lessons={lessons} mode="class" label={selectedTurma.nome} />

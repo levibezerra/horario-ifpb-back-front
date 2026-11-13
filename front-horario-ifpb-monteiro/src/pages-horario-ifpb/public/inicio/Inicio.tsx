@@ -7,6 +7,10 @@ import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import "./inicio.css"
 
+function compareNaturalPtBr(a: string, b: string) {
+  return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
+}
+
 export default function Inicio() {
   const navigate = useNavigate()
   const [classes, setClasses] = useState<TurmaDTO[]>([])
@@ -31,14 +35,25 @@ export default function Inicio() {
     loadPublicData()
   }, [])
 
-  const sortedClasses = useMemo(() => [...classes].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")), [classes])
-  
-  const courses = useMemo(() => {
-    const list = classes.map((c) => c.cursoNome).filter((name): name is string => Boolean(name))
-    return [...new Set(list)].sort((a, b) => a.localeCompare(b, "pt-BR"))
+  const sortedClasses = useMemo(() => {
+    return [...classes].sort((a, b) => {
+      const courseA = a.cursoNome || "Outros Cursos"
+      const courseB = b.cursoNome || "Outros Cursos"
+      const courseDiff = compareNaturalPtBr(courseA, courseB)
+      if (courseDiff !== 0) return courseDiff
+      return compareNaturalPtBr(a.nome, b.nome)
+    })
   }, [classes])
 
-  const sortedTeachers = useMemo(() => [...teachers].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")), [teachers])
+  const courses = useMemo(() => {
+    const list = classes.map((c) => c.cursoNome).filter((name): name is string => Boolean(name))
+    return [...new Set(list)].sort(compareNaturalPtBr)
+  }, [classes])
+
+  const sortedTeachers = useMemo(
+    () => [...teachers].sort((a, b) => compareNaturalPtBr(a.nome, b.nome)),
+    [teachers]
+  )
 
   const [selectedClassId, setSelectedClassId] = useState<string>("")
   const [selectedCourse, setSelectedCourse] = useState<string>("")
@@ -53,7 +68,14 @@ export default function Inicio() {
   function preview(type: "turma" | "curso" | "campus" | "professor" | "professores", value = "") {
     const params = new URLSearchParams({ tipo: type })
     if (value) params.set("valor", value)
-    navigate(`${ROUTES.printSchedules}?${params.toString()}`)
+
+    navigate(`${ROUTES.printSchedules}?${params.toString()}`, {
+      state: {
+        sortedClasses,
+        sortedTeachers,
+        courses,
+      },
+    })
   }
 
   return (

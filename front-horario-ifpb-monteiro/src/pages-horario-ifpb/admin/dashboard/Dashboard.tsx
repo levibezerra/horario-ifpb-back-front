@@ -18,6 +18,10 @@ import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import "./dashboard.css"
 import { toast } from "react-toastify"
 
+function compareNaturalPtBr(a: string, b: string) {
+  return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const [courses, setCourses] = useState<CursoDTO[]>([])
@@ -45,15 +49,34 @@ export default function Dashboard() {
         api.get<HorarioDTO[]>(API_ENDPOINTS.horarios),
       ])
 
-      setCourses(resCourses.data)
-      setClasses(resClasses.data)
+      const sortedCourses = [...resCourses.data].sort((a, b) =>
+        compareNaturalPtBr(a.nome, b.nome)
+      )
+
+      const sortedClasses = [...resClasses.data].sort((a, b) => {
+        const courseA =
+          a.cursoNome ||
+          sortedCourses.find((c) => Number(c.id) === Number(a.cursoId))?.nome ||
+          "Outros Cursos"
+        const courseB =
+          b.cursoNome ||
+          sortedCourses.find((c) => Number(c.id) === Number(b.cursoId))?.nome ||
+          "Outros Cursos"
+
+        const courseDiff = compareNaturalPtBr(courseA, courseB)
+        if (courseDiff !== 0) return courseDiff
+        return compareNaturalPtBr(a.nome, b.nome)
+      })
+
+      setCourses(sortedCourses)
+      setClasses(sortedClasses)
       setSubjects(resSubjects.data)
       setTeachers(resTeachers.data)
       setRooms(resRooms.data)
       setSchedules(resSchedules.data)
 
-      if (resClasses.data.length > 0 && selectedClassId === null) {
-        setSelectedClassId(resClasses.data[0].id!)
+      if (sortedClasses.length > 0 && selectedClassId === null) {
+        setSelectedClassId(sortedClasses[0].id!)
       }
     } catch (err: any) {
       toast.error("Erro ao carregar dados do Dashboard.")
@@ -170,18 +193,32 @@ export default function Dashboard() {
           <label className="admin-form-field">
             <span>Selecione a turma</span>
             <select value={selectedClassId ?? ""} onChange={(e) => setSelectedClassId(Number(e.target.value))}>
-              {classes.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.cursoNome ? `${item.nome} – ${item.cursoNome}` : item.nome}
-                </option>
-              ))}
+              {classes.map((item) => {
+                const courseName =
+                  item.cursoNome ||
+                  courses.find((c) => Number(c.id) === Number(item.cursoId))?.nome
+                return (
+                  <option key={item.id} value={item.id}>
+                    {courseName ? `${item.nome} – ${courseName}` : item.nome}
+                  </option>
+                )
+              })}
             </select>
           </label>
         </div>
 
         {selectedClass ? (
           <>
-            <ScheduleHeading mode="class" selected={selectedClass.nome} course={selectedClass.cursoNome || ""} lessons={selectedLessons} />
+            <ScheduleHeading
+              mode="class"
+              selected={selectedClass.nome}
+              course={
+                selectedClass.cursoNome ||
+                courses.find((c) => Number(c.id) === Number(selectedClass.cursoId))?.nome ||
+                ""
+              }
+              lessons={selectedLessons}
+            />
             <ScheduleGrid
               lessons={selectedLessons}
               mode="class"
