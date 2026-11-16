@@ -16,6 +16,30 @@ import { toast } from "react-toastify"
 
 const DIAS_SEMANA: DiaSemana[] = ["SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA"]
 
+const HORARIOS_GRADE = [
+  "07:00",
+  "07:50",
+  "08:40",
+  "09:00",
+  "09:50",
+  "10:40",
+  "11:30",
+  "12:20",
+  "13:00",
+  "13:50",
+  "14:40",
+  "15:30",
+  "15:40",
+  "16:30",
+  "17:20",
+  "18:10",
+  "19:20",
+  "20:10",
+  "20:30",
+  "21:20",
+  "22:10",
+]
+
 type ScheduleFormModalProps = {
   open: boolean
   editing: HorarioDTO | null
@@ -47,8 +71,8 @@ export function ScheduleFormModal({
     bloco: "",
     ambienteId: 0,
     diaSemana: "SEGUNDA" as DiaSemana,
-    horarioInicio: "07:30",
-    horarioFim: "08:20",
+    horarioInicio: "07:00",
+    horarioFim: "",
   })
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
@@ -119,8 +143,8 @@ export function ScheduleFormModal({
         bloco: defaultBloco,
         ambienteId: Number(defaultRooms[0]?.id || rooms[0]?.id || 0),
         diaSemana: "SEGUNDA",
-        horarioInicio: "07:30",
-        horarioFim: "08:20",
+        horarioInicio: "07:00",
+        horarioFim: "",
       })
     }
     setError("")
@@ -151,6 +175,51 @@ export function ScheduleFormModal({
     }))
   }
 
+  function handleToggleTime(time: string) {
+    setForm((prev) => {
+      // 1. Clicou no horário de início já marcado -> desmarca
+      if (prev.horarioInicio === time) {
+        return {
+          ...prev,
+          horarioInicio: prev.horarioFim || "",
+          horarioFim: "",
+        }
+      }
+
+      // 2. Clicou no horário de término já marcado -> desmarca o término
+      if (prev.horarioFim === time) {
+        return {
+          ...prev,
+          horarioFim: "",
+        }
+      }
+
+      // 3. Nenhum horário selecionado ainda -> marca como início
+      if (!prev.horarioInicio) {
+        return {
+          ...prev,
+          horarioInicio: time,
+          horarioFim: "",
+        }
+      }
+
+      // 4. Já existe início e ainda não existe término -> se for posterior, marca como término
+      if (!prev.horarioFim && time > prev.horarioInicio) {
+        return {
+          ...prev,
+          horarioFim: time,
+        }
+      }
+
+      // 5. Já existe início e término (ou clicou em horário anterior) -> reinicia com apenas esta caixa marcada
+      return {
+        ...prev,
+        horarioInicio: time,
+        horarioFim: "",
+      }
+    })
+  }
+
   async function save(event: FormEvent) {
     event.preventDefault()
     if (!form.cursoId || form.cursoId === 0) {
@@ -171,6 +240,10 @@ export function ScheduleFormModal({
     }
     if (!form.disciplinaId || form.disciplinaId === 0 || !form.professorId || form.professorId === 0) {
       setError("Selecione todas as entidades obrigatórias.")
+      return
+    }
+    if (!form.horarioInicio || !form.horarioFim || form.horarioFim <= form.horarioInicio) {
+      setError("Selecione o horário de início e um horário posterior para o término.")
       return
     }
 
@@ -319,15 +392,71 @@ export function ScheduleFormModal({
             </select>
           </label>
 
-          <label className="admin-form-field">
-            <span>Início *</span>
-            <input type="time" value={form.horarioInicio} onChange={(e) => setForm((c) => ({ ...c, horarioInicio: e.target.value }))} />
-          </label>
+          <div className="admin-form-field" style={{ gridColumn: "1 / -1" }}>
+            <span>
+              Horário (Início → Término) *{" "}
+              <strong>
+                {form.horarioInicio && form.horarioFim
+                  ? `${form.horarioInicio} → ${form.horarioFim}`
+                  : form.horarioInicio
+                  ? `${form.horarioInicio} (selecione o término)`
+                  : ""}
+              </strong>
+            </span>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(84px, 1fr))",
+                gap: "8px",
+                marginTop: "6px",
+              }}
+            >
+              {HORARIOS_GRADE.map((time) => {
+                const isStart = form.horarioInicio === time
+                const isEnd = form.horarioFim === time
+                const isBetween =
+                  Boolean(form.horarioInicio && form.horarioFim) &&
+                  time > form.horarioInicio &&
+                  time < form.horarioFim
+                const checked = isStart || isEnd
 
-          <label className="admin-form-field">
-            <span>Término *</span>
-            <input type="time" value={form.horarioFim} onChange={(e) => setForm((c) => ({ ...c, horarioFim: e.target.value }))} />
-          </label>
+                return (
+                  <label
+                    key={time}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "6px 10px",
+                      borderRadius: "8px",
+                      border: checked
+                        ? "1.5px solid #2f9e41"
+                        : isBetween
+                        ? "1px dashed #2f9e41"
+                        : "1px solid #d0d7de",
+                      backgroundColor: checked
+                        ? "rgba(47, 158, 65, 0.14)"
+                        : isBetween
+                        ? "rgba(47, 158, 65, 0.05)"
+                        : "transparent",
+                      fontWeight: checked ? 600 : 400,
+                      fontSize: "0.875rem",
+                      cursor: "pointer",
+                      userSelect: "none",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => handleToggleTime(time)}
+                      style={{ accentColor: "#2f9e41", cursor: "pointer" }}
+                    />
+                    <span>{time}</span>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
         </div>
 
         {error && <div className="admin-form-error">{error}</div>}

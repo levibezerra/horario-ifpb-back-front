@@ -3,7 +3,15 @@ import { authSession } from "./api-support/authSession"
 import { normalizeApiError } from "./api-support/apiError"
 export { apiErrorMessage, ApiError, normalizeApiError } from "./api-support/apiError"
 
-const baseURL = import.meta.env.VITE_API_URL?.trim() || "http://localhost:8080/api/v1"
+function resolveBaseURL(): string {
+  const envUrl = import.meta.env.VITE_API_URL?.trim()
+  if (envUrl) return envUrl
+
+  const hostname = typeof window !== "undefined" ? window.location.hostname : "localhost"
+  return `http://${hostname}:8080/api/v1`
+}
+
+const baseURL = resolveBaseURL()
 
 export const isApiConfigured = true
 
@@ -28,7 +36,6 @@ export function setApiAuthHandlers(handlers: {
 }
 
 api.interceptors.request.use((config) => {
-  // Garante a leitura direta do sessionStorage caso o authSession utilize a mesma chave
   const token = window.sessionStorage.getItem("ifpb_access_token") || authSession.getAccessToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`

@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -27,7 +28,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> {})
+                .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) ->
@@ -35,6 +36,9 @@ public class SecurityConfig {
                         )
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // 0. Libera requisições preflight (OPTIONS) para navegadores móveis e túneis HTTPS
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                         // 1. Rota de atualização do próprio perfil exige autenticação JWT
                         .requestMatchers(HttpMethod.PUT, "/api/v1/auth/me").authenticated()
 
@@ -45,7 +49,7 @@ public class SecurityConfig {
                         // 3. Documentação Swagger/OpenAPI liberada
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
-                        // 4. Todas as leituras (GET) são públicas para a consulta pública
+                        // 4. Todas as leituras (GET) são públicas para a consulta pública, QR Codes e buscador de salas
                         .requestMatchers(HttpMethod.GET, "/api/v1/**").permitAll()
 
                         // 5. Qualquer outra operação de escrita (POST, PUT, DELETE) exige autenticação
