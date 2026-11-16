@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { AdminIcon, type AdminIconName } from "@/components/Icon"
 import { EMAIL_PATTERN } from "@/services/authService"
 import { toast } from "react-toastify"
@@ -111,6 +111,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
   const [loading, setLoading] = useState(true)
 
   const [query, setQuery] = useState("")
+  const [selectedCourseId, setSelectedCourseId] = useState<number | "ALL">("ALL")
   const [editing, setEditing] = useState<EntityRecord | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [deleting, setDeleting] = useState<EntityRecord | null>(null)
@@ -190,14 +191,34 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
   }
 
   useEffect(() => {
+    setQuery("")
+    setSelectedCourseId("ALL")
     loadData()
   }, [kind])
 
-  const filtered = records.filter((record) =>
-    `${record.name} ${record.code ?? ""} ${record.detail ?? ""}`
-      .toLocaleLowerCase("pt-BR")
-      .includes(query.toLocaleLowerCase("pt-BR")),
-  )
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.toLocaleLowerCase("pt-BR")
+
+    const matching = records.filter((record) => {
+      if (kind === "classes" && selectedCourseId !== "ALL" && record.cursoId !== selectedCourseId) {
+        return false
+      }
+
+      return `${record.name} ${record.code ?? ""} ${record.detail ?? ""}`
+        .toLocaleLowerCase("pt-BR")
+        .includes(normalizedQuery)
+    })
+
+    if (kind === "classes") {
+      return [...matching].sort((a, b) => {
+        const courseComparison = (a.detail || "").localeCompare(b.detail || "", "pt-BR")
+        if (courseComparison !== 0) return courseComparison
+        return a.name.localeCompare(b.name, "pt-BR")
+      })
+    }
+
+    return matching
+  }, [records, query, selectedCourseId, kind])
 
   function openForm(record?: EntityRecord) {
     setEditing(record ?? null)
@@ -214,6 +235,11 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
         categoria: record.categoria || "SALA",
       })
     } else {
+      const defaultCourseId =
+        kind === "classes" && selectedCourseId !== "ALL"
+          ? selectedCourseId
+          : (availableCourses[0]?.id ?? 0)
+
       setForm({
         name: "",
         code: "",
@@ -221,7 +247,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
         detail: "",
         email: "",
         lattesUrl: "",
-        cursoId: availableCourses[0]?.id ?? 0,
+        cursoId: defaultCourseId,
         cursosIds: [],
         categoria: "SALA",
       })
@@ -327,16 +353,38 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
 
       <section className="admin-surface management-surface">
         <div className="table-toolbar">
-          <label>
-            <AdminIcon name="search" size={18} />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={config.search}
-            />
-          </label>
+          <div className="table-toolbar-filters">
+            <label>
+              <AdminIcon name="search" size={18} />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={config.search}
+              />
+            </label>
+
+            {kind === "classes" && (
+              <select
+                className="course-filter-select"
+                aria-label="Filtrar turmas por curso"
+                value={selectedCourseId}
+                onChange={(event) => {
+                  const val = event.target.value
+                  setSelectedCourseId(val === "ALL" ? "ALL" : Number(val))
+                }}
+              >
+                <option value="ALL">Todos os cursos</option>
+                {availableCourses.map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.nome}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
           <span>{filtered.length} resultados</span>
         </div>
+
         <div className="admin-table-scroll">
           <table className="admin-table">
             <thead>
