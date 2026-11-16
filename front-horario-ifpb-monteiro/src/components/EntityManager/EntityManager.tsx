@@ -129,6 +129,8 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
   })
   const [error, setError] = useState("")
 
+  const supportsCourseFilter = kind === "classes" || kind === "subjects"
+
   const loadData = async () => {
     try {
       setLoading(true)
@@ -200,7 +202,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
     const normalizedQuery = query.toLocaleLowerCase("pt-BR")
 
     const matching = records.filter((record) => {
-      if (kind === "classes" && selectedCourseId !== "ALL" && record.cursoId !== selectedCourseId) {
+      if (supportsCourseFilter && selectedCourseId !== "ALL" && record.cursoId !== selectedCourseId) {
         return false
       }
 
@@ -209,7 +211,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
         .includes(normalizedQuery)
     })
 
-    if (kind === "classes") {
+    if (supportsCourseFilter) {
       return [...matching].sort((a, b) => {
         const courseComparison = (a.detail || "").localeCompare(b.detail || "", "pt-BR")
         if (courseComparison !== 0) return courseComparison
@@ -218,7 +220,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
     }
 
     return matching
-  }, [records, query, selectedCourseId, kind])
+  }, [records, query, selectedCourseId, supportsCourseFilter])
 
   function openForm(record?: EntityRecord) {
     setEditing(record ?? null)
@@ -236,7 +238,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
       })
     } else {
       const defaultCourseId =
-        kind === "classes" && selectedCourseId !== "ALL"
+        supportsCourseFilter && selectedCourseId !== "ALL"
           ? selectedCourseId
           : (availableCourses[0]?.id ?? 0)
 
@@ -266,7 +268,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
       setError("Informe o código do curso.")
       return
     }
-    if ((kind === "classes" || kind === "subjects") && !form.cursoId) {
+    if (supportsCourseFilter && !form.cursoId) {
       setError("Selecione o curso vinculado.")
       return
     }
@@ -363,10 +365,10 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
               />
             </label>
 
-            {kind === "classes" && (
+            {supportsCourseFilter && (
               <select
                 className="course-filter-select"
-                aria-label="Filtrar turmas por curso"
+                aria-label={`Filtrar ${config.plural} por curso`}
                 value={selectedCourseId}
                 onChange={(event) => {
                   const val = event.target.value
@@ -482,7 +484,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
               </>
             )}
 
-            {(kind === "classes" || kind === "subjects") && (
+            {supportsCourseFilter && (
               <label className="admin-form-field">
                 <span>Curso vinculado *</span>
                 <select value={form.cursoId} onChange={(e) => setForm((c) => ({ ...c, cursoId: Number(e.target.value) }))}>
