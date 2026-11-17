@@ -180,12 +180,14 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
   const config = entityConfig[kind]
   const [records, setRecords] = useState<EntityRecord[]>([])
   const [availableCourses, setAvailableCourses] = useState<CursoDTO[]>([])
+  const [availableClasses, setAvailableClasses] = useState<TurmaDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [bulkActionLoading, setBulkActionLoading] = useState(false)
 
   const [query, setQuery] = useState("")
   const [selectedCourseId, setSelectedCourseId] = useState<number | "ALL">("ALL")
+  const [selectedClassId, setSelectedClassId] = useState<number | "ALL">("ALL")
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<number[]>([])
   const [editing, setEditing] = useState<EntityRecord | null>(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -215,10 +217,15 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
       const res = await api.get(config.endpoint)
 
       let loadedCourses: CursoDTO[] = []
+      let loadedClasses: TurmaDTO[] = []
       if (kind === "classes" || kind === "subjects" || kind === "teachers") {
         const coursesRes = await api.get<CursoDTO[]>(API_ENDPOINTS.cursos)
         loadedCourses = coursesRes.data
         setAvailableCourses(loadedCourses)
+
+        const classesRes = await api.get<TurmaDTO[]>(API_ENDPOINTS.turmas)
+        loadedClasses = classesRes.data
+        setAvailableClasses(loadedClasses)
       }
 
       if (kind === "courses") {
@@ -304,6 +311,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
   useEffect(() => {
     setQuery("")
     setSelectedCourseId("ALL")
+    setSelectedClassId("ALL")
     setSelectedScheduleIds([])
     loadData()
   }, [kind])
@@ -312,8 +320,14 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
     const normalizedQuery = query.toLocaleLowerCase("pt-BR")
 
     const matching = records.filter((record) => {
-      if (supportsCourseFilter && selectedCourseId !== "ALL" && record.cursoId !== selectedCourseId) {
+      if (kind === "classes" && selectedCourseId !== "ALL" && record.cursoId !== selectedCourseId) {
         return false
+      }
+      if (kind === "subjects" && selectedClassId !== "ALL") {
+        const targetClass = availableClasses.find((t) => t.id === selectedClassId)
+        if (targetClass && record.cursoId !== targetClass.cursoId) {
+          return false
+        }
       }
 
       return `${record.name} ${record.code ?? ""} ${record.tipoCalendario ?? ""} ${record.detail ?? ""}`
@@ -330,7 +344,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
     }
 
     return matching
-  }, [records, query, selectedCourseId, supportsCourseFilter])
+  }, [records, query, selectedCourseId, selectedClassId, availableClasses, kind, supportsCourseFilter])
 
   const allFilteredSelected =
     kind === "academicSchedules" &&
@@ -516,7 +530,10 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
         if (editing) await api.put(`${config.endpoint}/${editing.id}`, payload)
         else await api.post(config.endpoint, payload)
       } else if (kind === "subjects") {
-        const payload: Partial<DisciplinaDTO> = { nome: form.name.trim(), cursoId: form.cursoId }
+        const payload: Partial<DisciplinaDTO> = {
+          nome: form.name.trim(),
+          cursoId: form.cursoId,
+        }
         if (editing) await api.put(`${config.endpoint}/${editing.id}`, payload)
         else await api.post(config.endpoint, payload)
       } else if (kind === "teachers") {
@@ -659,10 +676,10 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
               />
             </label>
 
-            {supportsCourseFilter && (
+            {kind === "classes" && (
               <select
                 className="course-filter-select"
-                aria-label={`Filtrar ${config.plural} por curso`}
+                aria-label="Filtrar turmas por curso"
                 value={selectedCourseId}
                 onChange={(event) => {
                   const val = event.target.value
@@ -675,6 +692,29 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
                     {course.nome}
                   </option>
                 ))}
+              </select>
+            )}
+
+            {kind === "subjects" && (
+              <select
+                className="course-filter-select"
+                aria-label="Filtrar disciplinas por turma/período e curso"
+                value={selectedClassId}
+                onChange={(event) => {
+                  const val = event.target.value
+                  setSelectedClassId(val === "ALL" ? "ALL" : Number(val))
+                }}
+              >
+                <option value="ALL">Todas as disciplinas</option>
+                {availableClasses.map((cls) => {
+                  const courseName =
+                    cls.cursoNome || availableCourses.find((c) => c.id === cls.cursoId)?.nome || ""
+                  return (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.nome} — {courseName}
+                    </option>
+                  )
+                })}
               </select>
             )}
           </div>
