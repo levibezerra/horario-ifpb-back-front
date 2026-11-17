@@ -209,7 +209,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
   })
   const [error, setError] = useState("")
 
-  const supportsCourseFilter = kind === "classes" || kind === "subjects"
+  const supportsCourseFilter = kind === "classes" || kind === "teachers"
 
   const loadData = async () => {
     try {
@@ -323,6 +323,11 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
       if (kind === "classes" && selectedCourseId !== "ALL" && record.cursoId !== selectedCourseId) {
         return false
       }
+      if (kind === "teachers" && selectedCourseId !== "ALL") {
+        if (!record.cursosIds || !record.cursosIds.includes(selectedCourseId)) {
+          return false
+        }
+      }
       if (kind === "subjects" && selectedClassId !== "ALL") {
         const targetClass = availableClasses.find((t) => t.id === selectedClassId)
         if (targetClass && record.cursoId !== targetClass.cursoId) {
@@ -335,7 +340,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
         .includes(normalizedQuery)
     })
 
-    if (supportsCourseFilter) {
+    if (kind === "classes" || kind === "teachers") {
       return [...matching].sort((a, b) => {
         const courseComparison = (a.detail || "").localeCompare(b.detail || "", "pt-BR")
         if (courseComparison !== 0) return courseComparison
@@ -344,7 +349,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
     }
 
     return matching
-  }, [records, query, selectedCourseId, selectedClassId, availableClasses, kind, supportsCourseFilter])
+  }, [records, query, selectedCourseId, selectedClassId, availableClasses, kind])
 
   const allFilteredSelected =
     kind === "academicSchedules" &&
@@ -484,7 +489,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
       setError("Informe o código do curso.")
       return
     }
-    if (supportsCourseFilter && !form.cursoId) {
+    if (kind === "classes" && !form.cursoId) {
       setError("Selecione o curso vinculado.")
       return
     }
@@ -686,7 +691,26 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
                   setSelectedCourseId(val === "ALL" ? "ALL" : Number(val))
                 }}
               >
-                <option value="ALL">Todos os cursos</option>
+                <option value="ALL">Todas as turmas</option>
+                {availableCourses.map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.nome}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {kind === "teachers" && (
+              <select
+                className="course-filter-select"
+                aria-label="Filtrar professores por curso"
+                value={selectedCourseId}
+                onChange={(event) => {
+                  const val = event.target.value
+                  setSelectedCourseId(val === "ALL" ? "ALL" : Number(val))
+                }}
+              >
+                <option value="ALL">Todos os professores</option>
                 {availableCourses.map((course) => (
                   <option key={course.id} value={course.id}>
                     {course.nome}
@@ -698,7 +722,7 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
             {kind === "subjects" && (
               <select
                 className="course-filter-select"
-                aria-label="Filtrar disciplinas por turma/período e curso"
+                aria-label="Filtrar disciplinas por turma/período"
                 value={selectedClassId}
                 onChange={(event) => {
                   const val = event.target.value
@@ -1003,7 +1027,27 @@ export function EntityManager({ kind }: { kind: EntityKind }) {
               </>
             )}
 
-            {supportsCourseFilter && (
+            {kind === "classes" && (
+              <label className="admin-form-field">
+                <span>Curso vinculado *</span>
+                <select
+                  value={form.cursoId}
+                  onChange={(e) => setForm((c) => ({ ...c, cursoId: Number(e.target.value) }))}
+                >
+                  {availableCourses.length === 0 ? (
+                    <option value={0}>Nenhum curso cadastrado</option>
+                  ) : (
+                    availableCourses.map((course) => (
+                      <option key={course.id} value={course.id}>
+                        {course.codigo ? `${course.nome} (${course.codigo})` : course.nome}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+            )}
+
+            {kind === "subjects" && (
               <label className="admin-form-field">
                 <span>Curso vinculado *</span>
                 <select
