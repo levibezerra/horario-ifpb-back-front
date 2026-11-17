@@ -1,1 +1,12 @@
-/* A página reutiliza os estilos compartilhados de gerenciamento administrativo. */
+.disciplina-management .entity-name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.disciplina-management .table-entity-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}/* A página reutiliza os estilos compartilhados de gerenciamento administrativo. */
