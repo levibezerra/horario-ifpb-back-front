@@ -49,10 +49,15 @@ public class SecurityConfig {
                         // 3. Documentação Swagger/OpenAPI liberada
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
-                        // 4. Todas as leituras (GET) são públicas para a consulta pública, QR Codes e buscador de salas
+                        // 4. Horário Acadêmico (PDF): apenas o publicado e o download são públicos; a listagem completa exige login
+                        .requestMatchers(HttpMethod.GET, "/api/v1/calendarios-academicos/publico").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/calendarios-academicos/*/download").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/calendarios-academicos/**").authenticated()
+
+                        // 5. Demais leituras (GET) são públicas para a consulta pública, QR Codes e buscador de salas
                         .requestMatchers(HttpMethod.GET, "/api/v1/**").permitAll()
 
-                        // 5. Qualquer outra operação de escrita (POST, PUT, DELETE) exige autenticação
+                        // 6. Qualquer outra operação de escrita (POST, PUT, PATCH, DELETE) exige autenticação
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

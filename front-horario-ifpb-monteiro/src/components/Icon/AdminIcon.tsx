@@ -8,6 +8,8 @@ export type AdminIconName =
   | "teachers"
   | "rooms"
   | "schedules"
+  | "calendar"
+  | "filePdf"
   | "search"
   | "plus"
   | "edit"
@@ -29,6 +31,13 @@ export function AdminIcon({ name, size = 20 }: { name: AdminIconName; size?: num
     <>
       <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
       <path d="M6 12v5c3 3 9 3 12 0v-5" />
+    </>
+  )
+
+  const calendarSvg = (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M16 3v4M8 3v4M3 10h18M8 14h3M8 17h6" />
     </>
   )
 
@@ -66,10 +75,12 @@ export function AdminIcon({ name, size = 20 }: { name: AdminIconName; size?: num
         <path d="M8 7h2M8 11h2M14 7h1M14 11h1M8 15h2" />
       </>
     ),
-    schedules: (
+    schedules: calendarSvg,
+    calendar: calendarSvg,
+    filePdf: (
       <>
-        <rect x="3" y="5" width="18" height="16" rx="2" />
-        <path d="M16 3v4M8 3v4M3 10h18M8 14h3M8 17h6" />
+        <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
+        <path d="M14 3v6h6M8 13h8M8 17h5" />
       </>
     ),
     search: (

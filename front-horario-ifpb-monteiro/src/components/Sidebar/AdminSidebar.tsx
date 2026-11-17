@@ -16,6 +16,7 @@ export const ADMIN_NAV_ITEMS: {
   { to: ROUTES.adminTeachers, icon: "teachers", label: "Professores" },
   { to: ROUTES.adminRooms, icon: "rooms", label: "Ambientes" },
   { to: ROUTES.adminSchedules, icon: "schedules", label: "Horários" },
+  { to: ROUTES.adminAcademicSchedules, icon: "filePdf", label: "Calendário Acadêmico" },
 ]
 
 type AdminSidebarProps = {

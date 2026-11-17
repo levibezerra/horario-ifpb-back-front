@@ -13,6 +13,7 @@ export const ROUTES = {
   adminTeachers: "/admin/professores",
   adminRooms: "/admin/ambientes",
   adminSchedules: "/admin/horarios",
+  adminAcademicSchedules: "/admin/horarios-academicos",
 } as const
 
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES]

@@ -20,6 +20,16 @@ export type ModalidadeCurso =
   | "SUPERIOR"
   | "SUBSEQUENTE"
 
+export enum TipoCalendarioAcademico {
+  SUPERIOR = "SUPERIOR",
+  INTEGRADO = "INTEGRADO",
+}
+
+export enum StatusCalendarioAcademico {
+  RASCUNHO = "RASCUNHO",
+  PUBLICADO = "PUBLICADO",
+}
+
 export type ReferenciaApi = {
   id: EntityId
   nome: string
@@ -83,13 +93,23 @@ export type HorarioDTO = {
   professorNome?: string
   turmaId: EntityId
   turmaNome?: string
-  cursoId?: EntityId       
-  cursoNome?: string     
+  cursoId?: EntityId
+  cursoNome?: string
   disciplinaId: EntityId
   disciplinaNome?: string
   ambienteId: EntityId
   ambienteNome?: string
   dataAtualizacao?: string
+}
+
+export type CalendarioAcademicoDTO = {
+  id?: EntityId
+  titulo: string
+  tipo: TipoCalendarioAcademico
+  nomeArquivo: string
+  caminhoArquivo?: string
+  status: StatusCalendarioAcademico
+  criadoEm?: string
 }
 
 export type AdministradorDTO = {
@@ -105,6 +125,7 @@ export type DisciplinaApi = DisciplinaDTO
 export type ProfessorApi = ProfessorDTO
 export type AmbienteApi = AmbienteDTO
 export type HorarioApi = HorarioDTO
+export type CalendarioAcademicoApi = CalendarioAcademicoDTO
 export type AdministradorApi = AdministradorDTO
 
 // ==========================================
@@ -248,6 +269,7 @@ export const API_ENDPOINTS = {
   ambientes: "/ambientes",
   horarios: "/horarios",
   publicarHorarios: "/horarios/publicar",
+  calendariosAcademicos: "/calendarios-academicos",
   administradores: "/administradores",
   meuPerfil: "/auth/me",
   login: "/auth/login",

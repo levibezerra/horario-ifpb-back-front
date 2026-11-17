@@ -13,6 +13,7 @@ import Disciplina from "@/pages-horario-ifpb/admin/disciplina/Disciplina"
 import Professor from "@/pages-horario-ifpb/admin/professor/Professor"
 import Ambiente from "@/pages-horario-ifpb/admin/ambiente/Ambiente"
 import Horario from "@/pages-horario-ifpb/admin/horario/Horario"
+import CalendarioAcademico from "@/pages-horario-ifpb/admin/calendario-academico/CalendarioAcademico"
 import { PublicLayout } from "./PublicLayout"
 import { AuthLayout } from "./AuthLayout"
 import { AdminLayout } from "./AdminLayout"
@@ -59,6 +60,7 @@ export default function AppRoutes() {
         <Route path={ROUTES.adminTeachers} element={<ProtectedRoute><AdminLayout><Professor /></AdminLayout></ProtectedRoute>} />
         <Route path={ROUTES.adminRooms} element={<ProtectedRoute><AdminLayout><Ambiente /></AdminLayout></ProtectedRoute>} />
         <Route path={ROUTES.adminSchedules} element={<ProtectedRoute><AdminLayout><Horario /></AdminLayout></ProtectedRoute>} />
+        <Route path={ROUTES.adminAcademicSchedules} element={<ProtectedRoute><AdminLayout><CalendarioAcademico /></AdminLayout></ProtectedRoute>} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
