@@ -177,6 +177,7 @@ export type AtualizarTurmaRequest = Partial<CriarTurmaRequest>
 
 export type CriarDisciplinaRequest = {
   nome: string
+  cursoId: EntityId
 }
 export type AtualizarDisciplinaRequest = Partial<CriarDisciplinaRequest>
 
