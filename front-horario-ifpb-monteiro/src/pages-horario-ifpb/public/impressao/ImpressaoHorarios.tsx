@@ -223,17 +223,13 @@ export default function ImpressaoHorarios() {
               <i key={i} />
             ))}
           </div>
-          <div>
-            <strong>INSTITUTO FEDERAL</strong>
-            <span>Paraíba</span>
-          </div>
-        </div>
-        <div className="print-campus">
-          <strong>Instituto Federal da Paraíba</strong>
-          <span>
+          <div className="print-campus">
+            <strong>INSTITUTO FEDERAL DA PARAÍBA</strong>
+            <span>
             Campus Monteiro ·{" "}
             {kind === "calendario" ? "Calendário acadêmico oficial" : "Horário acadêmico 2026.2"}
           </span>
+          </div>
         </div>
         <div className="print-document-type">
           <span>{kind === "calendario" ? "CALENDÁRIO ACADÊMICO" : "DOCUMENTO ACADÊMICO"}</span>

@@ -52,7 +52,7 @@ public class SecurityConfig {
                         // 4. Horário Acadêmico (PDF): apenas o publicado e o download são públicos; a listagem completa exige login
                         .requestMatchers(HttpMethod.GET, "/api/v1/calendarios-academicos/publico").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/calendarios-academicos/*/download").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/calendarios-academicos/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/calendarios-academicos/**").permitAll()
 
                         // 5. Demais leituras (GET) são públicas para a consulta pública, QR Codes e buscador de salas
                         .requestMatchers(HttpMethod.GET, "/api/v1/**").permitAll()
