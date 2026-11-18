@@ -4,9 +4,6 @@
 .home-heading p,.hub-heading p,.home-consult p { margin: 0 0 5px; color: var(--leaf); font: 700 8px "Manrope"; letter-spacing: 1.4px; }
 .home-heading h1 { margin: 0; color: var(--forest-deep); font: 800 clamp(24px,3vw,34px)/1.1 "Manrope"; letter-spacing: -1px; }
 .home-heading > span { display: block; max-width: 650px; margin-top: 9px; color: #6e7d75; font-size: 12px; line-height: 1.55; }
-.home-stats { min-width: 370px; display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
-.home-stats > div { padding: 13px 14px; border-radius: 12px; background: #f3f0e9; }
-.home-stats strong,.home-stats small { display: block; }.home-stats strong { color: var(--forest); font: 800 19px "Manrope"; }.home-stats small { margin-top: 3px; color: #849088; font-size: 8px; line-height: 1.3; }
 
 .download-hub { margin-top: 18px; padding: 25px; }
 .hub-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 3px 18px; }
@@ -27,7 +24,7 @@
 .home-back-link { display: inline-flex; margin-top: 18px; border: 0; color: white; background: var(--forest); }
 
 @media (max-width: 1050px) {
-  .home-intro { align-items: flex-start; flex-direction: column; }.home-stats { width: 100%; min-width: 0; }
+  .home-intro { align-items: flex-start; flex-direction: column; }
   .hub-grid { grid-template-columns: 1fr 1fr; }.hub-grid > .hub-card:last-child { grid-column: 1 / -1; }
   .teacher-download-grid > .hub-card:last-child { grid-column: auto; }
 }
@@ -35,7 +32,6 @@
   .home-main { width: calc(100% - 24px); margin-top: -32px; }.home-intro,.download-hub { padding: 22px 16px; }
 }
 @media (max-width: 620px) {
-  .home-stats { grid-template-columns: 1fr; }.home-stats > div { display: flex; align-items: center; gap: 9px; }.home-stats small { margin: 0; }
   .hub-grid,.teacher-download-grid { grid-template-columns: 1fr; }.hub-grid > .hub-card:last-child { grid-column: auto; }.hub-card { min-height: 250px; }
   .home-consult { align-items: flex-start; flex-direction: column; }.home-consult > div:last-child,.home-consult a { width: 100%; }.home-consult a { justify-content: space-between; }
 }

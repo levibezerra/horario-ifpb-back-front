@@ -195,20 +195,6 @@ export default function Inicio() {
             todo o campus.
           </span>
         </div>
-        <div className="home-stats">
-          <div>
-            <strong>{classes.length}</strong>
-            <small>turmas cadastradas</small>
-          </div>
-          <div>
-            <strong>{sortedTeachers.length}</strong>
-            <small>professores cadastrados</small>
-          </div>
-          <div>
-            <strong>{schedules.length}</strong>
-            <small>blocos publicados</small>
-          </div>
-        </div>
       </section>
 
       <section className="download-hub">
