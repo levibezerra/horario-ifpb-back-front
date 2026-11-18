@@ -28,6 +28,7 @@ export default function Ambiente() {
   const [submitting, setSubmitting] = useState(false)
 
   const [query, setQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState<CategoriaAmbiente | "ALL">("ALL")
   const [editing, setEditing] = useState<RoomRecord | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [deleting, setDeleting] = useState<RoomRecord | null>(null)
@@ -64,12 +65,17 @@ export default function Ambiente() {
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.toLocaleLowerCase("pt-BR")
-    return records.filter((record) =>
-      `${record.name} ${record.categoria} ${record.detail}`
+
+    return records.filter((record) => {
+      if (selectedCategory !== "ALL" && record.categoria !== selectedCategory) {
+        return false
+      }
+
+      return `${record.name} ${record.categoria} ${record.detail}`
         .toLocaleLowerCase("pt-BR")
-        .includes(normalizedQuery),
-    )
-  }, [records, query])
+        .includes(normalizedQuery)
+    })
+  }, [records, query, selectedCategory])
 
   function openForm(record?: RoomRecord) {
     setEditing(record ?? null)
@@ -82,7 +88,7 @@ export default function Ambiente() {
     } else {
       setForm({
         name: "",
-        categoria: "SALA",
+        categoria: selectedCategory !== "ALL" ? selectedCategory : "SALA",
         detail: "",
       })
     }
@@ -164,6 +170,22 @@ export default function Ambiente() {
                 placeholder="Buscar ambiente..."
               />
             </label>
+
+            <select
+              className="course-filter-select"
+              aria-label="Filtrar ambientes por categoria"
+              value={selectedCategory}
+              onChange={(event) =>
+                setSelectedCategory(event.target.value as CategoriaAmbiente | "ALL")
+              }
+            >
+              <option value="ALL">Todos os ambientes</option>
+              {ROOM_CATEGORIES_OPTIONS.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
           </div>
           <span>{filtered.length} resultados</span>
         </div>
