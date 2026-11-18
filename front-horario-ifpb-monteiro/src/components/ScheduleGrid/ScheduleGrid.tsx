@@ -47,8 +47,13 @@ export function ScheduleGrid({
   const currentDay = dayMap[todayIndex]
 
   const periods = useMemo(() => {
-    const hasDaytimeClasses = lessons.some(
-      (lesson) => toMinutes(lesson.start) < toMinutes("18:30"),
+    const hasMorningClasses = lessons.some(
+      (lesson) => toMinutes(lesson.start) < toMinutes("12:20"),
+    )
+    const hasAfternoonClasses = lessons.some(
+      (lesson) =>
+        toMinutes(lesson.start) >= toMinutes("13:00") &&
+        toMinutes(lesson.start) < toMinutes("18:30"),
     )
     const hasNightClasses = lessons.some(
       (lesson) => toMinutes(lesson.start) >= toMinutes("18:30"),
@@ -59,13 +64,9 @@ export function ScheduleGrid({
 
     return ALL_PERIODS.filter((period) => {
       if (period.break) {
-        if (
-          period.start === "08:40" ||
-          period.start === "12:20" ||
-          period.start === "15:30"
-        ) {
-          return hasDaytimeClasses
-        }
+        if (period.start === "08:40") return hasMorningClasses
+        if (period.start === "12:20") return hasMorningClasses || hasAfternoonClasses
+        if (period.start === "15:30") return hasAfternoonClasses
         if (period.start === "20:10") return hasNightClasses
         return false
       }
