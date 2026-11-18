@@ -3,7 +3,8 @@ import type { ReactNode } from "react"
 import type { ViewMode } from "@/types/api"
 import { initials } from "@/services/scheduleService"
 
-type FilterGroup = {
+export type FilterGroup = {
+  section?: string
   group: string
   caption?: string
   items: Array<{ id: string; label: string }>
@@ -68,38 +69,64 @@ export function FilterSidebar({
           {query && <button onClick={() => onQueryChange("")}>Limpar filtro</button>}
         </div>
         <div className="group-list">
-          {groups.map((group) => (
-            <section key={group.group}>
-              <div className="group-title">
-                <div>
-                  <strong>{group.group}</strong>
-                  {group.caption && <small>{group.caption}</small>}
+          {groups.map((group, index) => {
+            const showSectionHeader =
+              Boolean(group.section) &&
+              (index === 0 || groups[index - 1]?.section !== group.section)
+
+            return (
+              <section key={`${group.section ?? "default"}-${group.group}`}>
+                {showSectionHeader && (
+                  <div
+                    className="modality-section-title"
+                    style={{
+                      fontSize: "0.78rem",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      color: "#2f9e41",
+                      padding: index === 0 ? "8px 4px 6px" : "4px 6px",
+                      paddingTop: "7px",
+                      borderBottom: "1px solid rgba(15, 23, 42, 0.08)",
+                      borderTop: "1px solid rgba(15, 23, 42, 0.08)",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    {group.section}
+                  </div>
+                )}
+
+                <div className="group-title">
+                  <div>
+                    <strong>{group.group}</strong>
+                    {group.caption && <small>{group.caption}</small>}
+                  </div>
+                  <span>{group.items.length}</span>
                 </div>
-                <span>{group.items.length}</span>
-              </div>
-              {group.items.map((item) => (
-                <button
-                  key={item.id}
-                  className={item.id === selected ? "filter-item selected" : "filter-item"}
-                  onClick={() => {
-                    onSelect(item.id)
-                    onClose()
-                  }}
-                >
-                  {mode === "teacher" ? (
-                    <span className="avatar">{initials(item.label)}</span>
-                  ) : (
-                    <span className="radio"><i /></span>
-                  )}
-                  <span>
-                    <strong>{item.label}</strong>
-                    <small>{mode === "class" ? group.caption : group.group}</small>
-                  </span>
-                  {item.id === selected && <Icon name="chevron" size={17} />}
-                </button>
-              ))}
-            </section>
-          ))}
+                {group.items.map((item) => (
+                  <button
+                    key={item.id}
+                    className={item.id === selected ? "filter-item selected" : "filter-item"}
+                    onClick={() => {
+                      onSelect(item.id)
+                      onClose()
+                    }}
+                  >
+                    {mode === "teacher" ? (
+                      <span className="avatar">{initials(item.label)}</span>
+                    ) : (
+                      <span className="radio"><i /></span>
+                    )}
+                    <span>
+                      <strong>{item.label}</strong>
+                      <small>{mode === "class" ? group.caption : group.group}</small>
+                    </span>
+                    {item.id === selected && <Icon name="chevron" size={17} />}
+                  </button>
+                ))}
+              </section>
+            )
+          })}
           {total === 0 && (
             <div className="no-results">
               <Icon name="search" />

@@ -1,14 +1,58 @@
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, type ComponentProps } from "react"
 import { FilterSidebar } from "@/components/Sidebar"
 import { MobileSelection, ScheduleGrid, ScheduleHeading } from "@/components/ScheduleGrid"
 import { useFilterPanel } from "@/hooks/useFilterPanel"
-import type { CursoDTO, HorarioDTO, ScheduleLesson, TurmaDTO } from "@/types/api"
+import type {
+  CursoDTO,
+  HorarioDTO,
+  ModalidadeCurso,
+  ScheduleLesson,
+  TurmaDTO,
+} from "@/types/api"
 import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import "./por-turma.css"
 
+type SidebarGroups = ComponentProps<typeof FilterSidebar>["groups"]
+
 function compareNaturalPtBr(a: string, b: string) {
   return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
+}
+
+function getModalityOrder(modalidade?: ModalidadeCurso): number {
+  if (modalidade === "INTEGRADO") return 0
+  if (modalidade === "SUPERIOR") return 1
+  if (modalidade === "SUBSEQUENTE") return 2
+  return 3
+}
+
+function getModalitySectionLabel(modalidade?: ModalidadeCurso): string {
+  if (modalidade === "INTEGRADO") return "Integrado"
+  if (modalidade === "SUPERIOR") return "Superior"
+  if (modalidade === "SUBSEQUENTE") return "Subsequente"
+  return "Outros"
+}
+
+function inferCourseModality(course?: CursoDTO, courseName = ""): ModalidadeCurso | undefined {
+  if (course?.modalidade) return course.modalidade
+
+  const normalized = courseName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+
+  if (normalized.includes("tecnico") || normalized.includes("integrado")) return "INTEGRADO"
+  if (
+    normalized.includes("superior") ||
+    normalized.includes("analise") ||
+    normalized.includes("construcao") ||
+    normalized.includes("licenciatura") ||
+    normalized.includes("bacharelado") ||
+    normalized.includes("tecnologia")
+  ) {
+    return "SUPERIOR"
+  }
+  return undefined
 }
 
 export default function PorTurma() {
@@ -28,15 +72,26 @@ export default function PorTurma() {
           api.get<HorarioDTO[]>(API_ENDPOINTS.horarios),
         ])
 
-        const sortedCourses = [...resCourses.data].sort((a, b) =>
-          compareNaturalPtBr(a.nome, b.nome)
-        )
+        const sortedCourses = [...resCourses.data].sort((a, b) => {
+          const modDiff = getModalityOrder(a.modalidade) - getModalityOrder(b.modalidade)
+          if (modDiff !== 0) return modDiff
+          return compareNaturalPtBr(a.nome, b.nome)
+        })
 
         const sortedClasses = [...resClasses.data].sort((a, b) => {
-          const courseA = a.cursoNome || sortedCourses.find((c) => c.id === a.cursoId)?.nome || "Outros Cursos"
-          const courseB = b.cursoNome || sortedCourses.find((c) => c.id === b.cursoId)?.nome || "Outros Cursos"
-          const courseDiff = compareNaturalPtBr(courseA, courseB)
+          const courseObjA = sortedCourses.find((c) => c.id === a.cursoId)
+          const courseObjB = sortedCourses.find((c) => c.id === b.cursoId)
+          const courseNameA = a.cursoNome || courseObjA?.nome || "Outros Cursos"
+          const courseNameB = b.cursoNome || courseObjB?.nome || "Outros Cursos"
+
+          const modA = inferCourseModality(courseObjA, courseNameA)
+          const modB = inferCourseModality(courseObjB, courseNameB)
+          const modDiff = getModalityOrder(modA) - getModalityOrder(modB)
+          if (modDiff !== 0) return modDiff
+
+          const courseDiff = compareNaturalPtBr(courseNameA, courseNameB)
           if (courseDiff !== 0) return courseDiff
+
           return compareNaturalPtBr(a.nome, b.nome)
         })
 
@@ -75,39 +130,58 @@ export default function PorTurma() {
       }))
   }, [schedules, selectedTurmaId])
 
-  // Agrupa e ordena os cursos e as turmas em ordem natural (1º, 2º, 3º... A, B)
-  const filteredGroups = useMemo(() => {
+  // Agrupa por modalidade (Integrado primeiro, Superior depois) e ordena turmas (1º ao 3º ano / períodos)
+  const filteredGroups: SidebarGroups = useMemo(() => {
     const q = query.toLocaleLowerCase("pt-BR")
 
     const filteredClasses = classes.filter((c) => {
-      const courseName =
-        c.cursoNome || courses.find((course) => course.id === c.cursoId)?.nome || "Outros Cursos"
+      const courseObj = courses.find((course) => course.id === c.cursoId)
+      const courseName = c.cursoNome || courseObj?.nome || "Outros Cursos"
+      const modalityLabel = getModalitySectionLabel(inferCourseModality(courseObj, courseName))
+
       return (
         c.nome.toLocaleLowerCase("pt-BR").includes(q) ||
-        courseName.toLocaleLowerCase("pt-BR").includes(q)
+        courseName.toLocaleLowerCase("pt-BR").includes(q) ||
+        modalityLabel.toLocaleLowerCase("pt-BR").includes(q)
       )
     })
 
-    const groupsMap = new Map<string, { id: string; label: string }[]>()
+    const groupsMap = new Map<
+      string,
+      {
+        courseName: string
+        modalidade?: ModalidadeCurso
+        items: { id: string; label: string }[]
+      }
+    >()
 
     filteredClasses.forEach((turma) => {
-      const courseName =
-        turma.cursoNome ||
-        courses.find((course) => course.id === turma.cursoId)?.nome ||
-        "Outros Cursos"
+      const courseObj = courses.find((course) => course.id === turma.cursoId)
+      const courseName = turma.cursoNome || courseObj?.nome || "Outros Cursos"
+      const modalidade = inferCourseModality(courseObj, courseName)
+      const mapKey = `${modalidade ?? "OUTROS"}::${courseName}`
 
-      if (!groupsMap.has(courseName)) {
-        groupsMap.set(courseName, [])
+      if (!groupsMap.has(mapKey)) {
+        groupsMap.set(mapKey, {
+          courseName,
+          modalidade,
+          items: [],
+        })
       }
-      groupsMap.get(courseName)!.push({ id: String(turma.id), label: turma.nome })
+      groupsMap.get(mapKey)!.items.push({ id: String(turma.id), label: turma.nome })
     })
 
-    return Array.from(groupsMap.entries())
-      .sort(([courseA], [courseB]) => compareNaturalPtBr(courseA, courseB))
-      .map(([courseName, items]) => ({
-        group: courseName,
+    return Array.from(groupsMap.values())
+      .sort((a, b) => {
+        const modDiff = getModalityOrder(a.modalidade) - getModalityOrder(b.modalidade)
+        if (modDiff !== 0) return modDiff
+        return compareNaturalPtBr(a.courseName, b.courseName)
+      })
+      .map((entry) => ({
+        section: getModalitySectionLabel(entry.modalidade),
+        group: entry.courseName,
         caption: "Turmas ofertadas",
-        items: [...items].sort((a, b) => compareNaturalPtBr(a.label, b.label)),
+        items: [...entry.items].sort((a, b) => compareNaturalPtBr(a.label, b.label)),
       }))
   }, [classes, courses, query])
 
