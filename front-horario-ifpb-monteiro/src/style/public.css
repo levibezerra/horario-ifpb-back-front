@@ -21,17 +21,81 @@
 
 .workspace { width: min(1480px, calc(100% - 48px)); margin: -34px auto 0; position: relative; z-index: 5; display: grid; grid-template-columns: 318px minmax(0, 1fr); align-items: start; gap: 22px; padding-bottom: 60px; }
 .filter-panel { background: var(--paper); border: 1px solid rgba(215,209,197,.85); border-radius: 20px; padding: 23px 15px 17px; height: calc(100vh - 62px); min-height: 620px; position: sticky; top: 18px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 15px 44px rgba(35,49,40,.09); }
-.filter-heading { display: flex; align-items: flex-start; justify-content: space-between; padding: 0 8px 16px; }
+.filter-heading { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; padding: 0 8px 16px; }
 .filter-heading p, .schedule-heading p, .context-card p, .lesson-modal > p { margin: 0 0 5px; color: var(--leaf); font: 700 8px 'Manrope'; letter-spacing: 1.4px; }
 .filter-heading h2 { font: 800 20px 'Manrope'; margin: 0; letter-spacing: -.5px; }.filter-heading > button { display: none; border: 0; background: #eeece6; color: #5e6d65; padding: 8px; border-radius: 50%; }
-.room-category-tabs { margin: 0 0 13px; padding: 4px; border-radius: 11px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: #efede7; }
+.room-category-tabs { flex: 0 0 auto; margin: 0 0 13px; padding: 4px; border-radius: 11px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: #efede7; }
 .room-category-tabs button { min-width: 0; min-height: 34px; padding: 5px 7px; border: 0; border-radius: 8px; color: #68766e; background: transparent; font-size: 8px; font-weight: 700; line-height: 1.2; }
 .room-category-tabs button:hover { color: var(--forest); background: rgba(255,255,255,.55); }
 .room-category-tabs button.active { color: white; background: var(--forest); box-shadow: 0 4px 10px rgba(16,60,42,.14); }
-.search-field { width: 100%; height: 54px; border: 1px solid var(--line); border-radius: 12px; display: flex; align-items: center; color: #89958f; padding: 0 13px; background: #f7f4ee; }
-.search-field:focus-within { border-color: #6ab58e; box-shadow: 0 0 0 3px #e5f3eb; }.search-field input { border: 0; outline: 0; background: transparent; width: 100%; padding: 0 8px; font-size: 11px; color: var(--ink); }.search-field input::placeholder { color: #9aa39e; }.search-field button { border: 0; background: transparent; color: #7e8b84; padding: 4px; }
-.result-count { display: flex; justify-content: space-between; padding: 11px 5px 15px; color: #87938c; font-size: 9px; }.result-count button { border: 0; background: transparent; padding: 0; color: var(--leaf); text-decoration: underline; font-size: 9px; }
-.group-list { overflow-y: auto; padding-right: 4px; scrollbar-color: #b9b6ae transparent; scrollbar-width: thin; }.group-list section { margin-bottom: 8px; }
+
+/* Campo de pesquisa padronizado em PorTurma, PorProfessor e PorAmbiente */
+.filter-panel .search-field {
+  width: 100%;
+  height: 50px !important;
+  min-height: 50px !important;
+  max-height: 50px !important;
+  flex: 0 0 50px !important;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  color: #89958f;
+  padding: 0 13px;
+  background: #f7f4ee;
+  overflow: hidden;
+  margin: 0;
+}
+
+.filter-panel .search-field:focus-within {
+  border-color: #6ab58e;
+  box-shadow: 0 0 0 3px #e5f3eb;
+}
+
+.filter-panel .search-field svg {
+  flex: 0 0 auto;
+}
+
+.filter-panel .search-field input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  width: 100%;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  padding: 0 8px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--ink);
+  box-sizing: border-box;
+}
+
+.filter-panel .search-field input::placeholder {
+  color: #9aa39e;
+}
+
+.filter-panel .search-field button {
+  border: 0;
+  background: transparent;
+  color: #7e8b84;
+  width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  padding: 0 !important;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px !important;
+  cursor: pointer;
+}
+
+.result-count { flex: 0 0 auto; display: flex; justify-content: space-between; padding: 11px 5px 15px; color: #87938c; font-size: 9px; }.result-count button { border: 0; background: transparent; padding: 0; color: var(--leaf); text-decoration: underline; font-size: 9px; }
+.group-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px; scrollbar-color: #b9b6ae transparent; scrollbar-width: thin; }.group-list section { margin-bottom: 8px; }
 .group-title { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 7px; }.group-title strong, .group-title small { display: block; }.group-title strong { font: 700 9px 'Manrope'; text-transform: uppercase; letter-spacing: .8px; color: #53635a; }.group-title small { font-size: 8px; color: #9aa49f; margin-top: 2px; }.group-title > span { min-width: 22px; height: 19px; display: grid; place-items: center; background: #eceae4; color: #68756e; border-radius: 10px; font-weight: 700; font-size: 8px; }
 .filter-item { width: 100%; min-height: 52px; border: 0; background: transparent; border-radius: 12px; padding: 9px 10px; color: #2e3d35; display: flex; align-items: center; gap: 10px; text-align: left; transition: .16s; }.filter-item:hover { background: #f2efe8; }.filter-item.selected { color: white; background: var(--forest); box-shadow: 0 7px 16px rgba(16,60,42,.17); }
 .filter-item > span:nth-child(2) { min-width: 0; flex: 1; }.filter-item strong, .filter-item small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.filter-item strong { font-size: 11px; }.filter-item small { color: #8d9992; font-size: 8px; margin-top: 3px; }.filter-item.selected small { color: #a9cbbb; }
