@@ -29,6 +29,9 @@ public class Horario {
     @Column(name = "horario_fim", nullable = false)
     private LocalTime horarioFim;
 
+    @Column(name = "periodo_letivo", nullable = false, length = 10)
+    private String periodoLetivo;
+
     @Column(name = "data_atualizacao")
     private LocalDateTime dataAtualizacao;
 

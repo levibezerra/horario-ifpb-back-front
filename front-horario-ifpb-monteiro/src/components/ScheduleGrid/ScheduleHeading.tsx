@@ -24,6 +24,7 @@ type ScheduleHeadingProps = {
   mode: ViewMode
   selected: string
   course?: string
+  periodoLetivo?: string
   lessons: ScheduleLesson[]
 }
 
@@ -31,21 +32,39 @@ export function ScheduleHeading({
   mode,
   selected,
   course,
+  periodoLetivo,
   lessons,
 }: ScheduleHeadingProps) {
   const subjects = new Set(lessons.map((lesson) => lesson.subject)).size
   const classes = new Set(lessons.map((lesson) => lesson.className)).size
 
+  const resolvedPeriod =
+    periodoLetivo?.trim() ||
+    lessons
+      .map((l) => (l as ScheduleLesson & { periodoLetivo?: string }).periodoLetivo?.trim())
+      .filter((p): p is string => Boolean(p))
+      .sort((a, b) => b.localeCompare(a, "pt-BR", { numeric: true }))[0] ||
+    ""
+
   return (
     <div className="schedule-heading">
       <div>
-        <p>{mode === "class" ? "GRADE DA TURMA" : mode === "teacher" ? "GRADE DO PROFESSOR" : "HORÁRIOS DO AMBIENTE"}</p>
+        <p>
+          {mode === "class"
+            ? "GRADE DA TURMA"
+            : mode === "teacher"
+            ? "GRADE DO PROFESSOR"
+            : "HORÁRIOS DO AMBIENTE"}
+        </p>
         <h1>{selected}</h1>
         <span>
           {mode === "teacher"
-            ? "Horários e turmas da grade 2026.2"
-            : mode === "room" ? "Aulas agendadas neste ambiente" : (course ?? "Dados conforme arquivo fornecido")}{" "}
-          {mode !== "room" ? "· 2026.2" : ""}
+            ? `Horários e turmas da grade${resolvedPeriod ? ` ${resolvedPeriod}` : ""}`
+            : mode === "room"
+            ? "Aulas agendadas neste ambiente"
+            : `${course ?? "Dados conforme arquivo fornecido"}${
+                resolvedPeriod ? ` · ${resolvedPeriod}` : ""
+              }`}
         </span>
       </div>
       <div className="schedule-summary">

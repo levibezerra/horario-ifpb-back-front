@@ -11,6 +11,7 @@ type PrintDocument = {
   id: string
   name: string
   detail: string
+  periodoLetivo: string
   mode: ViewMode
   lessons: ScheduleLesson[]
 }
@@ -30,12 +31,22 @@ function compareClassesByCourseAndPeriod(a: TurmaDTO, b: TurmaDTO) {
   return compareNaturalPtBr(a.nome, b.nome)
 }
 
+function extractLatestPeriod(items: HorarioDTO[]): string {
+  return (
+    items
+      .map((item) => item.periodoLetivo?.trim())
+      .filter((p): p is string => Boolean(p))
+      .sort((a, b) => compareNaturalPtBr(b, a))[0] || ""
+  )
+}
+
 export default function ImpressaoHorarios() {
   const { search, state } = useLocation()
   const params = new URLSearchParams(search)
   const kind = params.get("tipo") ?? "turma"
   const value = params.get("valor") ?? ""
   const passedTitle = params.get("titulo") || (state as any)?.calendarTitle || ""
+  const passedPeriod = params.get("periodo") || (state as any)?.periodoLetivo || ""
 
   const [classes, setClasses] = useState<TurmaDTO[]>([])
   const [teachers, setTeachers] = useState<ProfessorDTO[]>([])
@@ -134,13 +145,14 @@ export default function ImpressaoHorarios() {
           : [...teachers].sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
 
       return selectedTeachers.map((teacher) => {
-        const lessons = schedules.filter((item) => item.professorId === teacher.id).map(toLesson)
+        const teacherSchedules = schedules.filter((item) => item.professorId === teacher.id)
         return {
           id: `teacher-${teacher.id}`,
           name: teacher.nome,
           detail: teacher.cursosNomes?.join(" · ") || "",
+          periodoLetivo: extractLatestPeriod(teacherSchedules) || passedPeriod,
           mode: "teacher",
-          lessons,
+          lessons: teacherSchedules.map(toLesson),
         }
       })
     }
@@ -154,14 +166,27 @@ export default function ImpressaoHorarios() {
             .sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
         : [...classes].sort(compareClassesByCourseAndPeriod)
 
-    return selectedClasses.map((item) => ({
-      id: `class-${item.id}`,
-      name: item.nome,
-      detail: item.cursoNome ?? "",
-      mode: "class",
-      lessons: schedules.filter((schedule) => schedule.turmaId === item.id).map(toLesson),
-    }))
-  }, [classes, kind, schedules, teachers, value])
+    return selectedClasses.map((item) => {
+      const classSchedules = schedules.filter((schedule) => schedule.turmaId === item.id)
+      return {
+        id: `class-${item.id}`,
+        name: item.nome,
+        detail: item.cursoNome ?? "",
+        periodoLetivo: extractLatestPeriod(classSchedules) || passedPeriod,
+        mode: "class",
+        lessons: classSchedules.map(toLesson),
+      }
+    })
+  }, [classes, kind, passedPeriod, schedules, teachers, value])
+
+  const documentPeriod = useMemo(() => {
+    const fromDocs = documents
+      .map((doc) => doc.periodoLetivo)
+      .filter(Boolean)
+      .sort((a, b) => compareNaturalPtBr(b, a))[0]
+
+    return fromDocs || extractLatestPeriod(schedules) || passedPeriod
+  }, [documents, schedules, passedPeriod])
 
   const title =
     kind === "calendario"
@@ -226,9 +251,11 @@ export default function ImpressaoHorarios() {
           <div className="print-campus">
             <strong>INSTITUTO FEDERAL DA PARAÍBA</strong>
             <span>
-            Campus Monteiro ·{" "}
-            {kind === "calendario" ? "Calendário acadêmico oficial" : "Horário acadêmico 2026.2"}
-          </span>
+              Campus Monteiro ·{" "}
+              {kind === "calendario"
+                ? "Calendário acadêmico oficial"
+                : `Horário acadêmico${documentPeriod ? ` ${documentPeriod}` : ""}`}
+            </span>
           </div>
         </div>
         <div className="print-document-type">
@@ -295,6 +322,7 @@ export default function ImpressaoHorarios() {
                   mode={doc.mode}
                   selected={doc.name}
                   course={doc.detail}
+                  periodoLetivo={doc.periodoLetivo || documentPeriod}
                   lessons={doc.lessons}
                 />
                 <ScheduleGrid lessons={doc.lessons} mode={doc.mode} label={doc.name} />

@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,6 +60,7 @@ public class HorarioService {
 
     @Transactional
     public Horario salvar(Horario horario) {
+        validarPeriodoLetivo(horario);
         validarHorarioInicioEFim(horario);
         validarEntidades(horario);
         validarConflitos(horario);
@@ -93,6 +93,13 @@ public class HorarioService {
             });
             horarioRepository.saveAll(horarios);
         }
+    }
+
+    private void validarPeriodoLetivo(Horario horario) {
+        if (horario.getPeriodoLetivo() == null || !horario.getPeriodoLetivo().trim().matches("^\\d{4}\\.[12]$")) {
+            throw new BusinessException("O período letivo é obrigatório e deve seguir o padrão AAAA.1 ou AAAA.2 (ex: 2027.1).");
+        }
+        horario.setPeriodoLetivo(horario.getPeriodoLetivo().trim());
     }
 
     private void validarHorarioInicioEFim(Horario horario) {
@@ -144,6 +151,7 @@ public class HorarioService {
 
         horarioAtualizado.setId(id);
 
+        validarPeriodoLetivo(horarioAtualizado);
         validarHorarioInicioEFim(horarioAtualizado);
         validarEntidades(horarioAtualizado);
         validarConflitos(horarioAtualizado);

@@ -10,7 +10,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -57,6 +56,7 @@ public class HorarioController {
                 .diaSemana(dto.diaSemana())
                 .horarioInicio(dto.horarioInicio())
                 .horarioFim(dto.horarioFim())
+                .periodoLetivo(dto.periodoLetivo())
                 .status(dto.status() != null ? dto.status() : StatusHorario.RASCUNHO)
                 .professor(Professor.builder().id(dto.professorId()).build())
                 .turma(Turma.builder().id(dto.turmaId()).build())
@@ -88,6 +88,7 @@ public class HorarioController {
                 .diaSemana(dto.diaSemana())
                 .horarioInicio(dto.horarioInicio())
                 .horarioFim(dto.horarioFim())
+                .periodoLetivo(dto.periodoLetivo())
                 .status(dto.status() != null ? dto.status() : StatusHorario.RASCUNHO)
                 .professor(Professor.builder().id(dto.professorId()).build())
                 .turma(Turma.builder().id(dto.turmaId()).build())
@@ -100,14 +101,12 @@ public class HorarioController {
     }
 
     private HorarioDTO converterParaDto(Horario h) {
-        Long cursoId = (h.getTurma() != null && h.getTurma().getCurso() != null) ? h.getTurma().getCurso().getId() : null;
-        String cursoNome = (h.getTurma() != null && h.getTurma().getCurso() != null) ? h.getTurma().getCurso().getNome() : null;
-
         return new HorarioDTO(
                 h.getId(),
                 h.getDiaSemana(),
                 h.getHorarioInicio(),
                 h.getHorarioFim(),
+                h.getPeriodoLetivo(),
                 h.getStatus(),
                 h.getProfessor().getId(),
                 h.getProfessor().getNome(),

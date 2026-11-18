@@ -101,6 +101,15 @@ export default function Inicio() {
     loadPublicData()
   }, [])
 
+  const activePeriod = useMemo(() => {
+    const periods = schedules
+      .map((h) => h.periodoLetivo?.trim())
+      .filter((p): p is string => Boolean(p))
+      .sort((a, b) => compareNaturalPtBr(b, a))
+
+    return periods[0] || ""
+  }, [schedules])
+
   const superiorCalendars = useMemo(
     () => calendars.filter((c) => c.tipo === TipoCalendarioAcademico.SUPERIOR),
     [calendars],
@@ -166,6 +175,7 @@ export default function Inicio() {
     const params = new URLSearchParams({ tipo: type })
     if (value) params.set("valor", value)
     if (calendarTitle) params.set("titulo", calendarTitle)
+    if (activePeriod) params.set("periodo", activePeriod)
 
     navigate(`${ROUTES.printSchedules}?${params.toString()}`, {
       state: {
@@ -173,6 +183,7 @@ export default function Inicio() {
         sortedTeachers,
         courses,
         calendarTitle,
+        periodoLetivo: activePeriod,
       },
     })
   }
@@ -188,7 +199,7 @@ export default function Inicio() {
     <main className="home-main">
       <section className="home-surface home-intro">
         <div className="home-heading">
-          <p>CENTRAL DE DOCUMENTOS · 2026.2</p>
+          <p>CENTRAL DE DOCUMENTOS{activePeriod ? ` · ${activePeriod}` : ""}</p>
           <h1>Horários acadêmicos do Campus Monteiro</h1>
           <span>
             Consulte a grade na tela ou prepare um documento por turma, curso, professor ou para
