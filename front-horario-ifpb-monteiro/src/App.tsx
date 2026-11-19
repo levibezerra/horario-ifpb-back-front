@@ -1,5 +1,6 @@
 import { AdminDataProvider } from "@/hooks/useAdminData"
 import { AuthProvider } from "@/hooks/useAuth"
+import { PeriodoLetivoProvider } from "@/hooks/usePeriodoLetivo"
 import AppRoutes from "@/routes/AppRoutes"
 import { ToastContainer } from "react-toastify"
 import "react-toastify/dist/ReactToastify.css"
@@ -9,9 +10,11 @@ export default function App() {
   return (
     <>
       <AuthProvider>
-        <AdminDataProvider>
-          <AppRoutes />
-        </AdminDataProvider>
+        <PeriodoLetivoProvider>
+          <AdminDataProvider>
+            <AppRoutes />
+          </AdminDataProvider>
+        </PeriodoLetivoProvider>
       </AuthProvider>
       <ToastContainer
         position="top-right"
