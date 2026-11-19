@@ -12,7 +12,14 @@ type SubjectRecord = {
   id: number
   name: string
   detail: string
+  turmasDetail: string
   cursoId?: number
+  cursoIds?: number[]
+  turmaIds?: number[]
+}
+
+function compareNaturalPtBr(a: string, b: string) {
+  return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
 }
 
 export default function Disciplina() {
@@ -30,8 +37,10 @@ export default function Disciplina() {
 
   const [form, setForm] = useState({
     name: "",
-    cursoId: 0,
+    cursoIds: [] as number[],
+    turmaIds: [] as number[],
   })
+  const [pendingClassId, setPendingClassId] = useState<number>(0)
   const [error, setError] = useState("")
 
   const loadData = async () => {
@@ -43,17 +52,56 @@ export default function Disciplina() {
         api.get<TurmaDTO[]>(API_ENDPOINTS.turmas),
       ])
 
-      const loadedCourses = coursesRes.data
+      const loadedCourses = [...coursesRes.data].sort((a, b) =>
+        compareNaturalPtBr(a.nome, b.nome),
+      )
+      const loadedClasses = [...classesRes.data].sort((a, b) =>
+        compareNaturalPtBr(a.nome, b.nome),
+      )
+
       setAvailableCourses(loadedCourses)
-      setAvailableClasses(classesRes.data)
+      setAvailableClasses(loadedClasses)
 
       setRecords(
-        res.data.map((d) => ({
-          id: d.id!,
-          name: d.nome,
-          detail: d.cursoNome || loadedCourses.find((c) => c.id === d.cursoId)?.nome || "",
-          cursoId: d.cursoId,
-        })),
+        res.data.map((d: any) => {
+          const cursoIds: number[] = Array.isArray(d.cursoIds)
+            ? d.cursoIds.map(Number)
+            : d.cursoId
+              ? [Number(d.cursoId)]
+              : []
+
+          const turmaIds: number[] = Array.isArray(d.turmaIds)
+            ? d.turmaIds.map(Number)
+            : []
+
+          const detailNames =
+            cursoIds.length > 0
+              ? cursoIds
+                  .map((id) => loadedCourses.find((c) => Number(c.id) === id)?.nome)
+                  .filter(Boolean)
+                  .join(", ")
+              : d.cursoNome || loadedCourses.find((c) => Number(c.id) === Number(d.cursoId))?.nome || ""
+
+          const turmasDetail =
+            turmaIds.length > 0
+              ? turmaIds
+                  .map((id) => loadedClasses.find((t) => Number(t.id) === id)?.nome)
+                  .filter(Boolean)
+                  .join(", ")
+              : Array.isArray(d.turmaNomes)
+                ? d.turmaNomes.join(", ")
+                : ""
+
+          return {
+            id: d.id!,
+            name: d.nome,
+            detail: detailNames,
+            turmasDetail,
+            cursoId: d.cursoId,
+            cursoIds,
+            turmaIds,
+          }
+        }),
       )
     } catch {
       toast.error("Erro ao carregar os dados de disciplinas.")
@@ -71,48 +119,143 @@ export default function Disciplina() {
 
     return records.filter((record) => {
       if (selectedClassId !== "ALL") {
-        const targetClass = availableClasses.find((t) => t.id === selectedClassId)
-        if (targetClass && record.cursoId !== targetClass.cursoId) {
-          return false
+        if (record.turmaIds && record.turmaIds.length > 0) {
+          if (!record.turmaIds.includes(selectedClassId)) return false
+        } else {
+          const targetClass = availableClasses.find((t) => Number(t.id) === selectedClassId)
+          if (targetClass && record.cursoId !== targetClass.cursoId) {
+            return false
+          }
         }
       }
 
-      return `${record.name} ${record.detail}`
+      return `${record.name} ${record.detail} ${record.turmasDetail}`
         .toLocaleLowerCase("pt-BR")
         .includes(normalizedQuery)
     })
   }, [records, query, selectedClassId, availableClasses])
 
+  // Turmas filtradas pelos cursos marcados no checkbox e que ainda não foram adicionadas
+  const filteredClassesForCourses = useMemo(() => {
+    if (form.cursoIds.length === 0) return []
+    return availableClasses.filter(
+      (cls) =>
+        form.cursoIds.includes(Number(cls.cursoId)) &&
+        !form.turmaIds.includes(Number(cls.id)),
+    )
+  }, [availableClasses, form.cursoIds, form.turmaIds])
+
+  // Agrupamento das turmas disponíveis por curso para exibição no <select>
+  const groupedAvailableClasses = useMemo(() => {
+    const map = new Map<string, TurmaDTO[]>()
+    filteredClassesForCourses.forEach((cls) => {
+      const course = availableCourses.find((c) => Number(c.id) === Number(cls.cursoId))
+      const label = course
+        ? course.codigo
+          ? `${course.nome} (${course.codigo})`
+          : course.nome
+        : cls.cursoNome || "Curso"
+      if (!map.has(label)) map.set(label, [])
+      map.get(label)!.push(cls)
+    })
+    return Array.from(map.entries())
+  }, [filteredClassesForCourses, availableCourses])
+
   function openForm(record?: SubjectRecord) {
     setEditing(record ?? null)
     if (record) {
+      const initialCursoIds =
+        record.cursoIds && record.cursoIds.length > 0
+          ? record.cursoIds
+          : record.cursoId
+            ? [Number(record.cursoId)]
+            : []
+
       setForm({
         name: record.name,
-        cursoId: record.cursoId || (availableCourses[0]?.id ?? 0),
+        cursoIds: initialCursoIds,
+        turmaIds: record.turmaIds ? [...record.turmaIds] : [],
       })
     } else {
       setForm({
         name: "",
-        cursoId: availableCourses[0]?.id ?? 0,
+        cursoIds: [],
+        turmaIds: [],
       })
     }
+    setPendingClassId(0)
     setError("")
     setFormOpen(true)
+  }
+
+  function handleToggleCurso(cursoId: number) {
+    setForm((prev) => {
+      const exists = prev.cursoIds.includes(cursoId)
+      const nextCursoIds = exists
+        ? prev.cursoIds.filter((id) => id !== cursoId)
+        : [...prev.cursoIds, cursoId]
+
+      // Remove turmas vinculadas a cursos que foram desmarcados
+      const nextTurmaIds = prev.turmaIds.filter((turmaId) => {
+        const turmaObj = availableClasses.find((t) => Number(t.id) === turmaId)
+        return turmaObj ? nextCursoIds.includes(Number(turmaObj.cursoId)) : false
+      })
+
+      return {
+        ...prev,
+        cursoIds: nextCursoIds,
+        turmaIds: nextTurmaIds,
+      }
+    })
+    setPendingClassId(0)
+  }
+
+  function handleSelectAndAddTurma(turmaId: number) {
+    if (!turmaId) return
+    setForm((prev) => {
+      if (prev.turmaIds.includes(turmaId)) return prev
+      return {
+        ...prev,
+        turmaIds: [...prev.turmaIds, turmaId],
+      }
+    })
+    setPendingClassId(0)
+  }
+
+  function handleRemoveTurma(turmaId: number) {
+    setForm((prev) => ({
+      ...prev,
+      turmaIds: prev.turmaIds.filter((id) => id !== turmaId),
+    }))
   }
 
   async function save(event: FormEvent) {
     event.preventDefault()
     if (!form.name.trim()) {
-      setError("Informe o nome antes de salvar.")
+      setError("Informe o nome da disciplina antes de salvar.")
+      return
+    }
+    if (form.cursoIds.length === 0) {
+      setError("Selecione ao menos um curso vinculado.")
+      return
+    }
+    if (form.turmaIds.length === 0) {
+      setError("Adicione ao menos uma turma vinculada à disciplina.")
       return
     }
 
     try {
       setSubmitting(true)
-      const payload: Partial<DisciplinaDTO> = {
+      const payload: Partial<DisciplinaDTO> & {
+        cursoIds: number[]
+        turmaIds: number[]
+      } = {
         nome: form.name.trim(),
-        cursoId: form.cursoId,
+        cursoId: form.cursoIds[0],
+        cursoIds: form.cursoIds,
+        turmaIds: form.turmaIds,
       }
+
       if (editing) {
         await api.put(`${API_ENDPOINTS.disciplinas}/${editing.id}`, payload)
       } else {
@@ -121,8 +264,8 @@ export default function Disciplina() {
 
       toast.success(
         editing
-          ? "disciplina atualizado(a) com sucesso!"
-          : "disciplina cadastrado(a) com sucesso!",
+          ? "Disciplina atualizada com sucesso!"
+          : "Disciplina cadastrada com sucesso!",
       )
       setFormOpen(false)
       loadData()
@@ -188,7 +331,7 @@ export default function Disciplina() {
               <option value="ALL">Todas as disciplinas</option>
               {availableClasses.map((cls) => {
                 const courseName =
-                  cls.cursoNome || availableCourses.find((c) => c.id === cls.cursoId)?.nome || ""
+                  cls.cursoNome || availableCourses.find((c) => Number(c.id) === Number(cls.cursoId))?.nome || ""
                 return (
                   <option key={cls.id} value={cls.id}>
                     {cls.nome} — {courseName}
@@ -205,7 +348,8 @@ export default function Disciplina() {
             <thead>
               <tr>
                 <th>Nome da disciplina</th>
-                <th>Curso vinculado</th>
+                <th>Cursos vinculados</th>
+                <th>Turmas vinculadas</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -222,6 +366,9 @@ export default function Disciplina() {
                   </td>
                   <td>
                     <span>{record.detail || "Não informado"}</span>
+                  </td>
+                  <td>
+                    <span>{record.turmasDetail || "Não informado"}</span>
                   </td>
                   <td>
                     <button onClick={() => openForm(record)} aria-label={`Editar ${record.name}`}>
@@ -268,7 +415,7 @@ export default function Disciplina() {
 
             <InputField
               className="admin-form-field"
-              label="Nome da disciplina"
+              label="Nome da disciplina *"
               name="name"
               value={form.name}
               onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
@@ -276,23 +423,131 @@ export default function Disciplina() {
               required
             />
 
-            <label className="admin-form-field">
-              <span>Curso vinculado *</span>
-              <select
-                value={form.cursoId}
-                onChange={(e) => setForm((c) => ({ ...c, cursoId: Number(e.target.value) }))}
-              >
-                {availableCourses.length === 0 ? (
-                  <option value={0}>Nenhum curso cadastrado</option>
-                ) : (
-                  availableCourses.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.codigo ? `${course.nome} (${course.codigo})` : course.nome}
-                    </option>
-                  ))
-                )}
-              </select>
-            </label>
+            <fieldset className="admin-form-field course-checkboxes">
+              <legend>Cursos vinculados *</legend>
+              {availableCourses.length === 0 ? (
+                <span style={{ color: "#7d8982", fontSize: "12px" }}>
+                  Nenhum curso cadastrado.
+                </span>
+              ) : (
+                availableCourses.map((course) => {
+                  const courseId = Number(course.id)
+                  const checked = form.cursoIds.includes(courseId)
+                  const labelText = course.codigo
+                    ? `${course.nome} (${course.codigo})`
+                    : course.nome
+
+                  return (
+                    <label key={courseId}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => handleToggleCurso(courseId)}
+                      />
+                      <span>{labelText}</span>
+                    </label>
+                  )
+                })
+              )}
+            </fieldset>
+
+            <div className="admin-form-field">
+              <span>Turmas vinculadas *</span>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <select
+                  value={pendingClassId}
+                  onChange={(e) => {
+                    const selectedId = Number(e.target.value)
+                    setPendingClassId(selectedId)
+                    handleSelectAndAddTurma(selectedId)
+                  }}
+                  disabled={form.cursoIds.length === 0 || filteredClassesForCourses.length === 0}
+                >
+                  <option value={0}>
+                    {form.cursoIds.length === 0
+                      ? "Selecione ao menos um curso acima"
+                      : filteredClassesForCourses.length === 0
+                        ? "Todas as turmas dos cursos selecionados já foram adicionadas"
+                        : "Selecione uma turma para adicionar..."}
+                  </option>
+                  {groupedAvailableClasses.map(([courseLabel, classList]) => (
+                    <optgroup key={courseLabel} label={courseLabel}>
+                      {classList.map((cls) => (
+                        <option key={cls.id} value={cls.id}>
+                          {cls.nome}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
+              {form.turmaIds.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "6px",
+                    marginTop: "10px",
+                    padding: "10px",
+                    borderRadius: "10px",
+                    border: "1px solid #dcded8",
+                    background: "#f7f5ef",
+                  }}
+                >
+                  {form.turmaIds.map((turmaId) => {
+                    const turmaObj = availableClasses.find((t) => Number(t.id) === turmaId)
+                    if (!turmaObj) return null
+                    const courseObj = availableCourses.find(
+                      (c) => Number(c.id) === Number(turmaObj.cursoId),
+                    )
+                    const courseTag = courseObj?.codigo || courseObj?.nome || ""
+
+                    return (
+                      <span
+                        key={turmaId}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "5px 10px",
+                          borderRadius: "999px",
+                          border: "1px solid #3b9d6d",
+                          background: "#e8f5ed",
+                          color: "#174f36",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        <span>
+                          {turmaObj.nome}
+                          {courseTag ? ` (${courseTag})` : ""}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTurma(turmaId)}
+                          aria-label={`Remover turma ${turmaObj.nome}`}
+                          style={{
+                            border: 0,
+                            background: "transparent",
+                            color: "#174f36",
+                            cursor: "pointer",
+                            padding: 0,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            fontWeight: 800,
+                            fontSize: "14px",
+                            lineHeight: 1,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
 
             {error && <div className="admin-form-error">{error}</div>}
             <div className="admin-modal-actions">

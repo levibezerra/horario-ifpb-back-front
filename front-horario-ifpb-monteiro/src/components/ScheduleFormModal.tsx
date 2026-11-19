@@ -76,6 +76,25 @@ function inferModality(course?: CursoDTO): ModalidadeCurso {
   return "INTEGRADO"
 }
 
+function filterSubjectsForCourseAndClass(
+  subjects: DisciplinaDTO[],
+  cursoId: number,
+  turmaId: number,
+) {
+  if (!cursoId) return []
+  return subjects
+    .filter((s: any) => {
+      if (Array.isArray(s.turmaIds) && s.turmaIds.length > 0 && turmaId) {
+        return s.turmaIds.map(Number).includes(Number(turmaId))
+      }
+      if (Array.isArray(s.cursoIds) && s.cursoIds.length > 0) {
+        return s.cursoIds.map(Number).includes(Number(cursoId))
+      }
+      return Number(s.cursoId) === Number(cursoId)
+    })
+    .sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
+}
+
 export type ScheduleInitialValues = {
   cursoId?: number
   turmaId?: number
@@ -154,12 +173,10 @@ export function ScheduleFormModal({
     )
   }, [classes, form.cursoId])
 
-  const availableSubjects = useMemo(() => {
-    if (!form.cursoId) return []
-    return subjects
-      .filter((s) => Number(s.cursoId) === Number(form.cursoId))
-      .sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
-  }, [subjects, form.cursoId])
+  const availableSubjects = useMemo(
+    () => filterSubjectsForCourseAndClass(subjects, form.cursoId, form.turmaId),
+    [subjects, form.cursoId, form.turmaId]
+  )
 
   const availableRooms = useMemo(() => {
     if (!form.bloco) return rooms
@@ -205,9 +222,12 @@ export function ScheduleFormModal({
       const defaultClasses = sortClassesByName(
         classes.filter((t) => Number(t.cursoId) === defaultCursoId)
       )
-      const defaultSubjects = subjects
-        .filter((s) => Number(s.cursoId) === defaultCursoId)
-        .sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
+      const defaultTurmaId = Number(initialValues?.turmaId || defaultClasses[0]?.id || 0)
+      const defaultSubjects = filterSubjectsForCourseAndClass(
+        subjects,
+        defaultCursoId,
+        defaultTurmaId
+      )
 
       const defaultBloco = availableBlocos[0] || ""
       const defaultRooms = rooms.filter(
@@ -216,7 +236,7 @@ export function ScheduleFormModal({
 
       setForm({
         cursoId: defaultCursoId,
-        turmaId: Number(initialValues?.turmaId || defaultClasses[0]?.id || 0),
+        turmaId: defaultTurmaId,
         disciplinaId: Number(defaultSubjects[0]?.id || 0),
         professorId: Number(teachers[0]?.id || 0),
         bloco: defaultBloco,
@@ -239,9 +259,12 @@ export function ScheduleFormModal({
     const courseClasses = sortClassesByName(
       classes.filter((t) => Number(t.cursoId) === Number(cursoId))
     )
-    const courseSubjects = subjects
-      .filter((s) => Number(s.cursoId) === Number(cursoId))
-      .sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
+    const nextTurmaId = Number(courseClasses[0]?.id || 0)
+    const courseSubjects = filterSubjectsForCourseAndClass(
+      subjects,
+      cursoId,
+      nextTurmaId
+    )
 
     setForm((prev) => {
       const keepCurrentTimes =
@@ -251,12 +274,28 @@ export function ScheduleFormModal({
       return {
         ...prev,
         cursoId,
-        turmaId: Number(courseClasses[0]?.id || 0),
+        turmaId: nextTurmaId,
         disciplinaId: Number(courseSubjects[0]?.id || 0),
         horarioInicio: keepCurrentTimes ? prev.horarioInicio : nextTimes[0],
         horarioFim: keepCurrentTimes ? prev.horarioFim : "",
       }
     })
+  }
+
+  function handleTurmaChange(turmaId: number) {
+    const turmaSubjects = filterSubjectsForCourseAndClass(
+      subjects,
+      form.cursoId,
+      turmaId
+    )
+
+    setForm((prev) => ({
+      ...prev,
+      turmaId,
+      disciplinaId: turmaSubjects.some((s) => Number(s.id) === Number(prev.disciplinaId))
+        ? prev.disciplinaId
+        : Number(turmaSubjects[0]?.id || 0),
+    }))
   }
 
   function handleBlocoChange(bloco: string) {
@@ -404,7 +443,7 @@ export function ScheduleFormModal({
             <span>Turma *</span>
             <select
               value={form.turmaId}
-              onChange={(e) => setForm((c) => ({ ...c, turmaId: Number(e.target.value) }))}
+              onChange={(e) => handleTurmaChange(Number(e.target.value))}
               disabled={!form.cursoId || availableClasses.length === 0}
             >
               {availableClasses.length === 0 ? (
@@ -429,7 +468,7 @@ export function ScheduleFormModal({
               disabled={!form.cursoId || availableSubjects.length === 0}
             >
               {availableSubjects.length === 0 ? (
-                <option value={0}>Nenhuma disciplina cadastrada neste curso</option>
+                <option value={0}>Nenhuma disciplina cadastrada para esta turma</option>
               ) : (
                 availableSubjects.map((item) => (
                   <option key={item.id} value={item.id}>{item.nome}</option>
