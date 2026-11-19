@@ -5,6 +5,7 @@ import Button from "@/components/Button"
 import InputField from "@/components/InputField"
 import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
+import { usePeriodoLetivo } from "@/hooks/usePeriodoLetivo"
 import {
   StatusCalendarioAcademico,
   TipoCalendarioAcademico,
@@ -52,6 +53,8 @@ function parseStatusCalendario(raw: any): StatusCalendarioAcademico {
 }
 
 export default function CalendarioAcademico() {
+  const { periodoLetivo } = usePeriodoLetivo()
+
   const [records, setRecords] = useState<AcademicScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -462,7 +465,7 @@ export default function CalendarioAcademico() {
               name="name"
               value={form.name}
               onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
-              placeholder="Ex: Calendário Acadêmico 2026.2"
+              placeholder={`Ex: Calendário Acadêmico ${periodoLetivo}`}
               required
             />
 
