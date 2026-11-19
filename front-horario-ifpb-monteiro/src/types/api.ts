@@ -118,6 +118,10 @@ export type AdministradorDTO = {
   email: string
 }
 
+export type AnoLetivoDTO = {
+  periodoLetivo: string
+}
+
 // Aliases para compatibilidade caso algum arquivo antigo chame de *Api
 export type CursoApi = CursoDTO
 export type TurmaApi = TurmaDTO
@@ -127,6 +131,7 @@ export type AmbienteApi = AmbienteDTO
 export type HorarioApi = HorarioDTO
 export type CalendarioAcademicoApi = CalendarioAcademicoDTO
 export type AdministradorApi = AdministradorDTO
+export type AnoLetivoApi = AnoLetivoDTO
 
 // ==========================================
 // DTOs para Exibição na Grade (Schedule UI)
@@ -229,6 +234,10 @@ export type AtualizarAdministradorRequest = {
   email?: string
 }
 
+export type AtualizarAnoLetivoRequest = {
+  periodoLetivo: string
+}
+
 // ==========================================
 // Paginação e Erros
 // ==========================================
@@ -277,6 +286,7 @@ export const API_ENDPOINTS = {
   refresh: "/auth/refresh",
   logout: "/auth/logout",
   ultimaAtualizacao: "/horarios/ultima-atualizacao",
+  anoLetivo: "/ano-letivo",
 } as const
 
 export const ENDPOINTS = API_ENDPOINTS
