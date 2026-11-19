@@ -29,7 +29,7 @@ public class HorarioController {
     }
 
     @GetMapping("/ultima-atualizacao")
-    public ResponseEntity buscarUltimaAtualizacao() {
+    public ResponseEntity<?> buscarUltimaAtualizacao() {
         return horarioService.buscarUltimaDataAtualizacao()
                 .map(data -> ResponseEntity.ok(Map.of("dataAtualizacao", data)))
                 .orElseGet(() -> ResponseEntity.noContent().build());
@@ -56,7 +56,6 @@ public class HorarioController {
                 .diaSemana(dto.diaSemana())
                 .horarioInicio(dto.horarioInicio())
                 .horarioFim(dto.horarioFim())
-                .periodoLetivo(dto.periodoLetivo())
                 .status(dto.status() != null ? dto.status() : StatusHorario.RASCUNHO)
                 .professor(Professor.builder().id(dto.professorId()).build())
                 .turma(Turma.builder().id(dto.turmaId()).build())
@@ -88,7 +87,6 @@ public class HorarioController {
                 .diaSemana(dto.diaSemana())
                 .horarioInicio(dto.horarioInicio())
                 .horarioFim(dto.horarioFim())
-                .periodoLetivo(dto.periodoLetivo())
                 .status(dto.status() != null ? dto.status() : StatusHorario.RASCUNHO)
                 .professor(Professor.builder().id(dto.professorId()).build())
                 .turma(Turma.builder().id(dto.turmaId()).build())
@@ -106,7 +104,6 @@ public class HorarioController {
                 h.getDiaSemana(),
                 h.getHorarioInicio(),
                 h.getHorarioFim(),
-                h.getPeriodoLetivo(),
                 h.getStatus(),
                 h.getProfessor().getId(),
                 h.getProfessor().getNome(),

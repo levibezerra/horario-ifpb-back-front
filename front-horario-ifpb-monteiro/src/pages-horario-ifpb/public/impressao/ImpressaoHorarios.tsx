@@ -11,7 +11,6 @@ type PrintDocument = {
   id: string
   name: string
   detail: string
-  periodoLetivo: string
   mode: ViewMode
   lessons: ScheduleLesson[]
 }
@@ -23,21 +22,12 @@ function compareNaturalPtBr(a: string, b: string) {
   return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
 }
 
-function compareClassesByCourseAndPeriod(a: TurmaDTO, b: TurmaDTO) {
+function compareClassesByCourseAndName(a: TurmaDTO, b: TurmaDTO) {
   const courseA = a.cursoNome || "Outros Cursos"
   const courseB = b.cursoNome || "Outros Cursos"
   const courseDiff = compareNaturalPtBr(courseA, courseB)
   if (courseDiff !== 0) return courseDiff
   return compareNaturalPtBr(a.nome, b.nome)
-}
-
-function extractLatestPeriod(items: HorarioDTO[]): string {
-  return (
-    items
-      .map((item) => item.periodoLetivo?.trim())
-      .filter((p): p is string => Boolean(p))
-      .sort((a, b) => compareNaturalPtBr(b, a))[0] || ""
-  )
 }
 
 export default function ImpressaoHorarios() {
@@ -46,7 +36,6 @@ export default function ImpressaoHorarios() {
   const kind = params.get("tipo") ?? "turma"
   const value = params.get("valor") ?? ""
   const passedTitle = params.get("titulo") || (state as any)?.calendarTitle || ""
-  const passedPeriod = params.get("periodo") || (state as any)?.periodoLetivo || ""
 
   const [classes, setClasses] = useState<TurmaDTO[]>([])
   const [teachers, setTeachers] = useState<ProfessorDTO[]>([])
@@ -150,7 +139,6 @@ export default function ImpressaoHorarios() {
           id: `teacher-${teacher.id}`,
           name: teacher.nome,
           detail: teacher.cursosNomes?.join(" · ") || "",
-          periodoLetivo: extractLatestPeriod(teacherSchedules) || passedPeriod,
           mode: "teacher",
           lessons: teacherSchedules.map(toLesson),
         }
@@ -164,7 +152,7 @@ export default function ImpressaoHorarios() {
         ? classes
             .filter((c) => c.cursoNome === value)
             .sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
-        : [...classes].sort(compareClassesByCourseAndPeriod)
+        : [...classes].sort(compareClassesByCourseAndName)
 
     return selectedClasses.map((item) => {
       const classSchedules = schedules.filter((schedule) => schedule.turmaId === item.id)
@@ -172,21 +160,11 @@ export default function ImpressaoHorarios() {
         id: `class-${item.id}`,
         name: item.nome,
         detail: item.cursoNome ?? "",
-        periodoLetivo: extractLatestPeriod(classSchedules) || passedPeriod,
         mode: "class",
         lessons: classSchedules.map(toLesson),
       }
     })
-  }, [classes, kind, passedPeriod, schedules, teachers, value])
-
-  const documentPeriod = useMemo(() => {
-    const fromDocs = documents
-      .map((doc) => doc.periodoLetivo)
-      .filter(Boolean)
-      .sort((a, b) => compareNaturalPtBr(b, a))[0]
-
-    return fromDocs || extractLatestPeriod(schedules) || passedPeriod
-  }, [documents, schedules, passedPeriod])
+  }, [classes, kind, schedules, teachers, value])
 
   const title =
     kind === "calendario"
@@ -252,9 +230,7 @@ export default function ImpressaoHorarios() {
             <strong>INSTITUTO FEDERAL DA PARAÍBA</strong>
             <span>
               Campus Monteiro ·{" "}
-              {kind === "calendario"
-                ? "Calendário acadêmico oficial"
-                : `Horário acadêmico${documentPeriod ? ` ${documentPeriod}` : ""}`}
+              {kind === "calendario" ? "Calendário acadêmico oficial" : "Horário acadêmico"}
             </span>
           </div>
         </div>
@@ -322,7 +298,6 @@ export default function ImpressaoHorarios() {
                   mode={doc.mode}
                   selected={doc.name}
                   course={doc.detail}
-                  periodoLetivo={doc.periodoLetivo || documentPeriod}
                   lessons={doc.lessons}
                 />
                 <ScheduleGrid lessons={doc.lessons} mode={doc.mode} label={doc.name} />

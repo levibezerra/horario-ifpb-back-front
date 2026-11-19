@@ -88,7 +88,6 @@ export type HorarioDTO = {
   diaSemana: DiaSemana
   horarioInicio: string
   horarioFim: string
-  periodoLetivo: string
   status?: StatusHorario
   professorId: EntityId
   professorNome?: string

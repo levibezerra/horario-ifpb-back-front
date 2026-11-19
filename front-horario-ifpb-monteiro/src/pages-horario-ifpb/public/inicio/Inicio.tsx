@@ -6,7 +6,6 @@ import {
   API_ENDPOINTS,
   StatusCalendarioAcademico,
   TipoCalendarioAcademico,
-  type HorarioDTO,
   type ProfessorDTO,
   type TurmaDTO,
 } from "@/types/api"
@@ -57,16 +56,14 @@ export default function Inicio() {
   const navigate = useNavigate()
   const [classes, setClasses] = useState<TurmaDTO[]>([])
   const [teachers, setTeachers] = useState<ProfessorDTO[]>([])
-  const [schedules, setSchedules] = useState<HorarioDTO[]>([])
   const [calendars, setCalendars] = useState<AcademicCalendarItem[]>([])
 
   useEffect(() => {
     async function loadPublicData() {
       try {
-        const [resClasses, resTeachers, resSchedules, resCalendars] = await Promise.all([
+        const [resClasses, resTeachers, resCalendars] = await Promise.all([
           api.get<TurmaDTO[]>(API_ENDPOINTS.turmas),
           api.get<ProfessorDTO[]>(API_ENDPOINTS.professores),
-          api.get<HorarioDTO[]>(API_ENDPOINTS.horarios),
           api
             .get(`${ACADEMIC_CALENDARS_ENDPOINT}/publicos`)
             .catch(() => api.get(ACADEMIC_CALENDARS_ENDPOINT))
@@ -75,7 +72,6 @@ export default function Inicio() {
 
         setClasses(resClasses.data)
         setTeachers(resTeachers.data)
-        setSchedules(resSchedules.data.filter((h) => h.status === "PUBLICADO"))
 
         const rawCalendars = Array.isArray(resCalendars.data)
           ? resCalendars.data
@@ -100,15 +96,6 @@ export default function Inicio() {
     }
     loadPublicData()
   }, [])
-
-  const activePeriod = useMemo(() => {
-    const periods = schedules
-      .map((h) => h.periodoLetivo?.trim())
-      .filter((p): p is string => Boolean(p))
-      .sort((a, b) => compareNaturalPtBr(b, a))
-
-    return periods[0] || ""
-  }, [schedules])
 
   const superiorCalendars = useMemo(
     () => calendars.filter((c) => c.tipo === TipoCalendarioAcademico.SUPERIOR),
@@ -175,7 +162,6 @@ export default function Inicio() {
     const params = new URLSearchParams({ tipo: type })
     if (value) params.set("valor", value)
     if (calendarTitle) params.set("titulo", calendarTitle)
-    if (activePeriod) params.set("periodo", activePeriod)
 
     navigate(`${ROUTES.printSchedules}?${params.toString()}`, {
       state: {
@@ -183,7 +169,6 @@ export default function Inicio() {
         sortedTeachers,
         courses,
         calendarTitle,
-        periodoLetivo: activePeriod,
       },
     })
   }
@@ -199,7 +184,7 @@ export default function Inicio() {
     <main className="home-main">
       <section className="home-surface home-intro">
         <div className="home-heading">
-          <p>CENTRAL DE DOCUMENTOS{activePeriod ? ` · ${activePeriod}` : ""}</p>
+          <p>CENTRAL DE DOCUMENTOS</p>
           <h1>Horários acadêmicos do Campus Monteiro</h1>
           <span>
             Consulte a grade na tela ou prepare um documento por turma, curso, professor ou para

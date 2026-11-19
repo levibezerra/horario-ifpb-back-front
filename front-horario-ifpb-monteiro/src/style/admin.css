@@ -320,10 +320,18 @@
   box-shadow: none;
 }
 
-.admin-input input:focus { outline: 0; border: 0; box-shadow: none; background: transparent; }
+.admin-input input:focus {
+  outline: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
 .admin-input input::-webkit-search-decoration,
 .admin-input input::-webkit-search-cancel-button,
-.admin-input input::-webkit-inner-spin-button { display: none; }
+.admin-input input::-webkit-inner-spin-button {
+  display: none;
+}
 
 .admin-input input::placeholder {
   color: #a7afa9;
@@ -944,9 +952,17 @@
   box-shadow: none;
 }
 
-.table-toolbar input:focus { border: 0; outline: 0; box-shadow: none; background: transparent; }
+.table-toolbar input:focus {
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
 .table-toolbar input::-webkit-search-decoration,
-.table-toolbar input::-webkit-search-cancel-button { display: none; }
+.table-toolbar input::-webkit-search-cancel-button {
+  display: none;
+}
 
 .table-toolbar > span {
   color: #87928c;
@@ -1052,18 +1068,34 @@
   display: table-cell;
 }
 
-.schedule-status { width: fit-content; padding: 5px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 700; }
-.schedule-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.schedule-status.publicado { color: #227149; background: #e5f3eb; }
-.schedule-status.rascunho { color: #826421; background: #fbefc8; }
+.schedule-status {
+  width: fit-content;
+  padding: 5px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  font-weight: 700;
+}
 
-.publish-control { display: grid; grid-template-columns: auto auto; align-items: center; justify-items: end; gap: 4px 10px; }
-.publish-control > span { padding: 5px 8px; border-radius: 12px; color: #327452; background: #e7f3eb; font-size: 8px; font-weight: 700; }
-.publish-control > span.has-drafts { color: #775b1d; background: #fff0c5; }
-.publish-control > small { grid-column: 1 / -1; color: #849088; font-size: 8px; }
-.publish-control .admin-primary:disabled { cursor: not-allowed; opacity: .52; box-shadow: none; }
-.publish-confirm > span { color: #f3c969; background: var(--forest); }
-.admin-confirm > div .confirm-publish { border-color: var(--forest); color: white; background: var(--forest); }
+.schedule-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.schedule-status.publicado {
+  color: #227149;
+  background: #e5f3eb;
+}
+
+.schedule-status.rascunho {
+  color: #826421;
+  background: #fbefc8;
+}
 
 .table-limit-note {
   padding: 12px 17px;
@@ -1479,14 +1511,56 @@
 }
 
 /* Padronização dos campos e ações dos formulários */
-.admin-form-field > span,.admin-form-field legend { font-size:14px; font-weight:700; }
-.admin-form-field input,.admin-form-field select,.admin-form-field textarea { font-size:15px; min-height:44px; }
-.admin-modal-actions { display:flex; justify-content:flex-end; align-items:center; gap:10px; }
-.admin-modal-actions button { min-width:112px; min-height:42px; padding:10px 16px; }
-.course-checkboxes { border:1px solid var(--line); border-radius:12px; padding:14px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
-.course-checkboxes legend { padding:0 6px; font-weight:700; }
-.course-checkboxes label { display:flex; align-items:center; gap:8px; font-size:14px; }
-.course-checkboxes input { accent-color:var(--leaf); }
+.admin-form-field > span,
+.admin-form-field legend {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-form-field input,
+.admin-form-field select,
+.admin-form-field textarea {
+  font-size: 15px;
+  min-height: 44px;
+}
+
+.admin-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-modal-actions button {
+  min-width: 112px;
+  min-height: 42px;
+  padding: 10px 16px;
+}
+
+.course-checkboxes {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.course-checkboxes legend {
+  padding: 0 6px;
+  font-weight: 700;
+}
+
+.course-checkboxes label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.course-checkboxes input {
+  accent-color: var(--leaf);
+}
 
 /* Campos de seleção consistentes em toda a área administrativa */
 .admin-root select {
@@ -1509,11 +1583,27 @@
   text-overflow: ellipsis;
 }
 
-.admin-root select:hover { border-color: #aebcb4; }
-.admin-root select:focus { border-color: #3d9e6e; box-shadow: 0 0 0 3px rgba(39,165,104,.14); }
-.admin-form-field { min-width: 0; }
-.admin-form-field > span, .admin-form-field legend { display: block; margin-bottom: 7px; color: #425249; font-size: 12px; line-height: 1.3; }
-.dashboard-schedule-preview .admin-form-field { width: min(100%, 420px); min-width: min(100%, 320px); margin-bottom: 0; }
+.admin-root select:hover {
+  border-color: #aebcb4;
+}
+
+.admin-root select:focus {
+  border-color: #3d9e6e;
+  box-shadow: 0 0 0 3px rgba(39, 165, 104, 0.14);
+}
+
+.admin-form-field {
+  min-width: 0;
+}
+
+.admin-form-field > span,
+.admin-form-field legend {
+  display: block;
+  margin-bottom: 7px;
+  color: #425249;
+  font-size: 12px;
+  line-height: 1.3;
+}
 
 /* Seleção múltipla de cursos no cadastro de professores */
 .course-checkboxes {
@@ -1550,11 +1640,21 @@
   font-weight: 600;
   line-height: 1.3;
   cursor: pointer;
-  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 }
 
-.course-checkboxes label:hover { border-color: #8fbaa2; background: #f5fbf7; }
-.course-checkboxes label:has(input:checked) { border-color: #3b9d6d; color: #174f36; background: #e8f5ed; box-shadow: inset 3px 0 #27a568; }
+.course-checkboxes label:hover {
+  border-color: #8fbaa2;
+  background: #f5fbf7;
+}
+
+.course-checkboxes label:has(input:checked) {
+  border-color: #3b9d6d;
+  color: #174f36;
+  background: #e8f5ed;
+  box-shadow: inset 3px 0 #27a568;
+}
+
 .course-checkboxes input[type="checkbox"] {
   width: 19px;
   height: 19px;
@@ -1563,7 +1663,11 @@
   margin: 0;
   accent-color: var(--leaf);
 }
-.course-checkboxes label span { min-width: 0; overflow-wrap: anywhere; }
+
+.course-checkboxes label span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 
 .admin-modal-actions > button,
 .admin-modal-actions > button.admin-primary {
@@ -1575,13 +1679,32 @@
   line-height: 1;
 }
 
-.table-toolbar label { width: min(520px, 100%); }
-.table-toolbar input { font-size: 12px; }
-.table-toolbar > span { font-size: 10px; }
-.schedule-admin-table td { font-size: 11px; line-height: 1.45; }
-.profile-security-note { margin: -6px 0 18px; padding: 10px 12px; border-radius: 9px; color: #617168; background: #f1f4f2; font-size: 10px; line-height: 1.45; }
-.dashboard-schedule-preview .surface-heading { padding-left: 0; padding-right: 0; }
-.dashboard-schedule-preview > .schedule-heading { padding-left: 0; }
+.table-toolbar label {
+  width: min(520px, 100%);
+}
+
+.table-toolbar input {
+  font-size: 12px;
+}
+
+.table-toolbar > span {
+  font-size: 10px;
+}
+
+.schedule-admin-table td {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.profile-security-note {
+  margin: -6px 0 18px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  color: #617168;
+  background: #f1f4f2;
+  font-size: 10px;
+  line-height: 1.45;
+}
 
 /* Filtro rápido por curso na barra de ferramentas da listagem de turmas (EntityManager) */
 .table-toolbar-filters {
@@ -1629,15 +1752,41 @@
 }
 
 @media (max-width: 620px) {
-  .course-checkboxes { grid-template-columns: 1fr; }
-  .course-checkboxes label { min-height: 50px; }
-  .admin-modal-actions { display: grid; grid-template-columns: 1fr 1fr; }
-  .admin-modal-actions button { width: 100%; min-width: 0; }
-  .admin-edit-profile span { display: none; }
-  .admin-account > button.admin-edit-profile { width: 34px; padding: 0; justify-content: center; }
-  .admin-topbar.overview-topbar > div:first-of-type span { display: block; font-size: 9px; }
-  .admin-page-heading .publish-control { width: 100%; grid-template-columns: 1fr; justify-items: stretch; }
-  .publish-control > span { width: fit-content; }
-  .publish-control > small { grid-column: auto; }
-  .admin-root .course-filter-select { width: 100%; max-width: none; }
+  .course-checkboxes {
+    grid-template-columns: 1fr;
+  }
+
+  .course-checkboxes label {
+    min-height: 50px;
+  }
+
+  .admin-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-modal-actions button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-edit-profile span {
+    display: none;
+  }
+
+  .admin-account > button.admin-edit-profile {
+    width: 34px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .admin-topbar.overview-topbar > div:first-of-type span {
+    display: block;
+    font-size: 9px;
+  }
+
+  .admin-root .course-filter-select {
+    width: 100%;
+    max-width: none;
+  }
 }

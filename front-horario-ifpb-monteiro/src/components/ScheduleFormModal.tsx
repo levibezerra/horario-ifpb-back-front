@@ -33,6 +33,7 @@ const HORARIOS_GRADE = [
   "16:30",
   "17:20",
   "18:10",
+  "18:30",
   "19:20",
   "20:10",
   "20:30",
@@ -40,19 +41,26 @@ const HORARIOS_GRADE = [
   "22:10",
 ]
 
-const PERIODO_PATTERN = /^\d{4}\.[12]$/
-
 function compareNaturalPtBr(a: string, b: string) {
   return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
 }
 
-function sortClassesByPeriod(list: TurmaDTO[]) {
+function sortClassesByName(list: TurmaDTO[]) {
   return [...list].sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
+}
+
+export type ScheduleInitialValues = {
+  cursoId?: number
+  turmaId?: number
+  diaSemana?: DiaSemana
+  horarioInicio?: string
+  horarioFim?: string
 }
 
 type ScheduleFormModalProps = {
   open: boolean
   editing: HorarioDTO | null
+  initialValues?: ScheduleInitialValues | null
   courses: CursoDTO[]
   classes: TurmaDTO[]
   subjects: DisciplinaDTO[]
@@ -65,6 +73,7 @@ type ScheduleFormModalProps = {
 export function ScheduleFormModal({
   open,
   editing,
+  initialValues,
   courses,
   classes,
   subjects,
@@ -81,7 +90,6 @@ export function ScheduleFormModal({
     bloco: "",
     ambienteId: 0,
     diaSemana: "SEGUNDA" as DiaSemana,
-    periodoLetivo: "",
     horarioInicio: "07:00",
     horarioFim: "",
   })
@@ -104,7 +112,7 @@ export function ScheduleFormModal({
 
   const availableClasses = useMemo(() => {
     if (!form.cursoId) return []
-    return sortClassesByPeriod(
+    return sortClassesByName(
       classes.filter((t) => Number(t.cursoId) === Number(form.cursoId))
     )
   }, [classes, form.cursoId])
@@ -142,13 +150,18 @@ export function ScheduleFormModal({
         bloco: initialBloco,
         ambienteId: Number(editing.ambienteId),
         diaSemana: editing.diaSemana,
-        periodoLetivo: editing.periodoLetivo || "",
         horarioInicio: editing.horarioInicio.substring(0, 5),
         horarioFim: editing.horarioFim.substring(0, 5),
       })
     } else {
-      const defaultCursoId = Number(courses[0]?.id || 0)
-      const defaultClasses = sortClassesByPeriod(
+      const targetTurmaFromInit = initialValues?.turmaId
+        ? classes.find((t) => Number(t.id) === Number(initialValues.turmaId))
+        : undefined
+
+      const defaultCursoId = Number(
+        initialValues?.cursoId || targetTurmaFromInit?.cursoId || courses[0]?.id || 0
+      )
+      const defaultClasses = sortClassesByName(
         classes.filter((t) => Number(t.cursoId) === defaultCursoId)
       )
       const defaultSubjects = subjects
@@ -162,24 +175,23 @@ export function ScheduleFormModal({
 
       setForm({
         cursoId: defaultCursoId,
-        turmaId: Number(defaultClasses[0]?.id || 0),
+        turmaId: Number(initialValues?.turmaId || defaultClasses[0]?.id || 0),
         disciplinaId: Number(defaultSubjects[0]?.id || 0),
         professorId: Number(teachers[0]?.id || 0),
         bloco: defaultBloco,
         ambienteId: Number(defaultRooms[0]?.id || rooms[0]?.id || 0),
-        diaSemana: "SEGUNDA",
-        periodoLetivo: "",
-        horarioInicio: "07:00",
-        horarioFim: "",
+        diaSemana: initialValues?.diaSemana || "SEGUNDA",
+        horarioInicio: initialValues?.horarioInicio?.substring(0, 5) || "07:00",
+        horarioFim: initialValues?.horarioFim?.substring(0, 5) || "",
       })
     }
     setError("")
-  }, [open, editing, courses, classes, subjects, teachers, rooms, availableBlocos])
+  }, [open, editing, initialValues, courses, classes, subjects, teachers, rooms, availableBlocos])
 
   if (!open) return null
 
   function handleCursoChange(cursoId: number) {
-    const courseClasses = sortClassesByPeriod(
+    const courseClasses = sortClassesByName(
       classes.filter((t) => Number(t.cursoId) === Number(cursoId))
     )
     const courseSubjects = subjects
@@ -267,14 +279,6 @@ export function ScheduleFormModal({
       setError("Selecione todas as entidades obrigatórias.")
       return
     }
-    if (!form.periodoLetivo.trim()) {
-      setError("Informe o ano/período do horário (ex: 2027.1).")
-      return
-    }
-    if (!PERIODO_PATTERN.test(form.periodoLetivo.trim())) {
-      setError("Informe o período no formato AAAA.1 ou AAAA.2 (ex: 2027.1).")
-      return
-    }
     if (!form.horarioInicio || !form.horarioFim || form.horarioFim <= form.horarioInicio) {
       setError("Selecione o horário de início e um horário posterior para o término.")
       return
@@ -286,7 +290,6 @@ export function ScheduleFormModal({
       professorId: form.professorId,
       ambienteId: form.ambienteId,
       diaSemana: form.diaSemana,
-      periodoLetivo: form.periodoLetivo.trim(),
       horarioInicio: form.horarioInicio.length === 5 ? `${form.horarioInicio}:00` : form.horarioInicio,
       horarioFim: form.horarioFim.length === 5 ? `${form.horarioFim}:00` : form.horarioFim,
       status: "RASCUNHO" as const,
@@ -428,18 +431,6 @@ export function ScheduleFormModal({
                 <option key={day} value={day}>{day}</option>
               ))}
             </select>
-          </label>
-
-          <label className="admin-form-field">
-            <span>Ano / Período *</span>
-            <input
-              type="text"
-              value={form.periodoLetivo}
-              onChange={(e) => setForm((c) => ({ ...c, periodoLetivo: e.target.value }))}
-              placeholder="Ex: 2027.1"
-              maxLength={6}
-              required
-            />
           </label>
 
           <div className="admin-form-field" style={{ gridColumn: "1 / -1" }}>

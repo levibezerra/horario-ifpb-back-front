@@ -1,11 +1,249 @@
 import { useEffect, useMemo, useState } from "react"
-import { AdminIcon } from "@/components/Icon"
-import { ScheduleFormModal } from "@/components/ScheduleFormModal"
-import type { AmbienteDTO, CursoDTO, DisciplinaDTO, HorarioDTO, ProfessorDTO, TurmaDTO } from "@/types/api"
+import { AdminIcon, Icon } from "@/components/Icon"
+import { ScheduleHeading } from "@/components/ScheduleGrid"
+import { ScheduleFormModal, type ScheduleInitialValues } from "@/components/ScheduleFormModal"
+import { getDisciplinaColor } from "@/utils/colorGenerator"
+import type {
+  AmbienteDTO,
+  CursoDTO,
+  DiaSemana,
+  DisciplinaDTO,
+  HorarioDTO,
+  ModalidadeCurso,
+  ProfessorDTO,
+  ScheduleLesson,
+  TurmaDTO,
+} from "@/types/api"
 import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import "./horario.css"
 import { toast } from "react-toastify"
+
+type TimeSlotDefinition = {
+  start: string
+  end: string
+  isBreak?: boolean
+  breakLabel?: string
+}
+
+type AdminLessonModalProps = {
+  lesson: ScheduleLesson
+  onClose: () => void
+  onEdit: (lessonId: string) => void
+  onDelete: (lessonId: string) => Promise<void> | void
+}
+
+function AdminLessonModal({
+  lesson,
+  onClose,
+  onEdit,
+  onDelete,
+}: AdminLessonModalProps) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleConfirmDelete() {
+    if (!lesson.id) return
+    try {
+      setDeleting(true)
+      await onDelete(lesson.id)
+      onClose()
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="modal-layer" role="dialog" aria-modal="true" aria-labelledby="admin-lesson-title">
+      <button className="modal-overlay" onClick={onClose} aria-label="Fechar detalhes" />
+      <section className="lesson-modal">
+        <div className="modal-top">
+          <span><Icon name="book" /></span>
+          <button onClick={onClose} aria-label="Fechar"><Icon name="x" /></button>
+        </div>
+        <p>GERENCIAR BLOCO DE AULA</p>
+        <h2 id="admin-lesson-title">{lesson.subject}</h2>
+
+        <div className="details">
+          <div>
+            <Icon name="teacher" />
+            <span>
+              <small>Professor</small>
+              <strong>{lesson.teacher}</strong>
+            </span>
+          </div>
+          <div>
+            <Icon name="users" />
+            <span>
+              <small>Turma</small>
+              <strong>{lesson.className}</strong>
+            </span>
+          </div>
+          <div>
+            <Icon name="room" />
+            <span>
+              <small>Ambiente</small>
+              <strong>{lesson.room || "Não informado"}</strong>
+            </span>
+          </div>
+          <div>
+            <Icon name="clock" />
+            <span>
+              <small>Dia e Horário</small>
+              <strong>
+                {lesson.day} · {lesson.start.substring(0, 5)}–{lesson.end.substring(0, 5)}
+              </strong>
+            </span>
+          </div>
+        </div>
+
+        {!confirmingDelete ? (
+          <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem" }}>
+            <button
+              type="button"
+              className="modal-action"
+              style={{ flex: 1, justifyContent: "center" }}
+              onClick={() => {
+                if (lesson.id) {
+                  onClose()
+                  onEdit(lesson.id)
+                }
+              }}
+            >
+              <AdminIcon name="edit" size={17} />
+              Editar Bloco
+            </button>
+
+            <button
+              type="button"
+              className="modal-action"
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                backgroundColor: "#dc2626",
+                color: "#ffffff",
+                borderColor: "#dc2626",
+              }}
+              onClick={() => setConfirmingDelete(true)}
+            >
+              <AdminIcon name="trash" size={17} />
+              Excluir
+            </button>
+          </div>
+        ) : (
+          <div
+            style={{
+              marginTop: "1rem",
+              padding: "0.875rem",
+              borderRadius: "10px",
+              backgroundColor: "rgba(220, 38, 38, 0.08)",
+              border: "1px solid rgba(220, 38, 38, 0.25)",
+            }}
+          >
+            <p
+              style={{
+                margin: "0 0 0.75rem",
+                fontSize: "0.875rem",
+                color: "#991b1b",
+                textTransform: "none",
+                letterSpacing: "normal",
+              }}
+            >
+              Tem certeza que deseja excluir o bloco de <strong>{lesson.subject}</strong>?
+            </p>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                type="button"
+                className="modal-action"
+                style={{ flex: 1, justifyContent: "center", backgroundColor: "transparent", color: "inherit" }}
+                onClick={() => setConfirmingDelete(false)}
+                disabled={deleting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="modal-action"
+                style={{
+                  flex: 1,
+                  justifyContent: "center",
+                  backgroundColor: "#dc2626",
+                  color: "#ffffff",
+                  borderColor: "#dc2626",
+                }}
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Excluindo..." : "Confirmar Exclusão"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+const DIAS_SEMANA: { key: DiaSemana; label: string }[] = [
+  { key: "SEGUNDA", label: "Segunda" },
+  { key: "TERCA", label: "Terça" },
+  { key: "QUARTA", label: "Quarta" },
+  { key: "QUINTA", label: "Quinta" },
+  { key: "SEXTA", label: "Sexta" },
+]
+
+// Faixa dos Cursos Integrados: 07:00 às 18:10
+const SLOTS_INTEGRADO: TimeSlotDefinition[] = [
+  { start: "07:00", end: "07:50" },
+  { start: "07:50", end: "08:40" },
+  { start: "08:40", end: "09:00", isBreak: true, breakLabel: "Intervalo" },
+  { start: "09:00", end: "09:50" },
+  { start: "09:50", end: "10:40" },
+  { start: "10:40", end: "11:30" },
+  { start: "11:30", end: "12:20" },
+  { start: "12:20", end: "13:00", isBreak: true, breakLabel: "Almoço" },
+  { start: "13:00", end: "13:50" },
+  { start: "13:50", end: "14:40" },
+  { start: "14:40", end: "15:30" },
+  { start: "15:30", end: "15:40", isBreak: true, breakLabel: "Intervalo" },
+  { start: "15:40", end: "16:30" },
+  { start: "16:30", end: "17:20" },
+  { start: "17:20", end: "18:10" },
+]
+
+// Faixa dos Cursos Superiores: 18:30 às 22:10
+const SLOTS_SUPERIOR: TimeSlotDefinition[] = [
+  { start: "18:30", end: "19:20" },
+  { start: "19:20", end: "20:10" },
+  { start: "20:10", end: "20:30", isBreak: true, breakLabel: "Intervalo" },
+  { start: "20:30", end: "21:20" },
+  { start: "21:20", end: "22:10" },
+]
+
+function compareNaturalPtBr(a: string, b: string) {
+  return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
+}
+
+function inferModality(course?: CursoDTO, courseName = ""): ModalidadeCurso {
+  if (course?.modalidade) return course.modalidade
+
+  const norm = courseName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+
+  if (
+    norm.includes("superior") ||
+    norm.includes("analise") ||
+    norm.includes("construcao") ||
+    norm.includes("licenciatura") ||
+    norm.includes("bacharelado") ||
+    norm.includes("tecnologia")
+  ) {
+    return "SUPERIOR"
+  }
+  return "INTEGRADO"
+}
 
 export default function Horario() {
   const [schedules, setSchedules] = useState<HorarioDTO[]>([])
@@ -16,10 +254,12 @@ export default function Horario() {
   const [rooms, setRooms] = useState<AmbienteDTO[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [query, setQuery] = useState("")
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null)
+  const [selectedLesson, setSelectedLesson] = useState<ScheduleLesson | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<HorarioDTO | null>(null)
-  const [deleting, setDeleting] = useState<HorarioDTO | null>(null)
+  const [initialValues, setInitialValues] = useState<ScheduleInitialValues | null>(null)
+  const [publishConfirmation, setPublishConfirmation] = useState(false)
 
   const loadAllData = async () => {
     try {
@@ -32,12 +272,36 @@ export default function Horario() {
         api.get<ProfessorDTO[]>(API_ENDPOINTS.professores),
         api.get<AmbienteDTO[]>(API_ENDPOINTS.ambientes),
       ])
+
+      const sortedCourses = [...resCourses.data].sort((a, b) =>
+        compareNaturalPtBr(a.nome, b.nome)
+      )
+
+      const sortedClasses = [...resClasses.data].sort((a, b) => {
+        const courseA =
+          a.cursoNome ||
+          sortedCourses.find((c) => Number(c.id) === Number(a.cursoId))?.nome ||
+          "Outros Cursos"
+        const courseB =
+          b.cursoNome ||
+          sortedCourses.find((c) => Number(c.id) === Number(b.cursoId))?.nome ||
+          "Outros Cursos"
+
+        const courseDiff = compareNaturalPtBr(courseA, courseB)
+        if (courseDiff !== 0) return courseDiff
+        return compareNaturalPtBr(a.nome, b.nome)
+      })
+
       setSchedules(resSchedules.data)
-      setCourses(resCourses.data)
-      setClasses(resClasses.data)
+      setCourses(sortedCourses)
+      setClasses(sortedClasses)
       setSubjects(resSubjects.data)
       setTeachers(resTeachers.data)
       setRooms(resRooms.data)
+
+      if (sortedClasses.length > 0 && selectedClassId === null) {
+        setSelectedClassId(Number(sortedClasses[0].id))
+      }
     } catch (err: any) {
       toast.error("Erro ao carregar os dados de horários.")
     } finally {
@@ -49,118 +313,344 @@ export default function Horario() {
     loadAllData()
   }, [])
 
-  const filtered = useMemo(() => {
-    const q = query.toLocaleLowerCase("pt-BR")
-    return schedules.filter(
-      (h) =>
-        (h.turmaNome || "").toLocaleLowerCase("pt-BR").includes(q) ||
-        (h.cursoNome || "").toLocaleLowerCase("pt-BR").includes(q) ||
-        (h.disciplinaNome || "").toLocaleLowerCase("pt-BR").includes(q) ||
-        (h.professorNome || "").toLocaleLowerCase("pt-BR").includes(q) ||
-        (h.ambienteNome || "").toLocaleLowerCase("pt-BR").includes(q) ||
-        (h.diaSemana || "").toLocaleLowerCase("pt-BR").includes(q)
-    )
-  }, [schedules, query])
+  const draftSchedules = useMemo(
+    () => schedules.filter((item) => item.status === "RASCUNHO"),
+    [schedules]
+  )
+  const draftCount = draftSchedules.length
 
-  function openForm(record?: HorarioDTO) {
-    setEditing(record ?? null)
-    setFormOpen(true)
-  }
-
-  async function confirmDelete() {
-    if (!deleting?.id) return
+  const handlePublish = async () => {
     try {
-      await api.delete(`${API_ENDPOINTS.horarios}/${deleting.id}`)
-      toast.success("Horário excluído com sucesso!")
-      setDeleting(null)
-      loadAllData()
+      const draftIds = draftSchedules.map((h) => h.id!)
+      await api.post(API_ENDPOINTS.publicarHorarios, { horarioIds: draftIds })
+      toast.success("Horários publicados com sucesso!")
+      await loadAllData()
     } catch (err: any) {
-      toast.error("Erro ao excluir horário.")
+      toast.error(err.response?.data?.message || "Erro ao publicar horários.")
+    } finally {
+      setPublishConfirmation(false)
     }
   }
 
+  const currentClassIndex = useMemo(
+    () => classes.findIndex((c) => Number(c.id) === Number(selectedClassId)),
+    [classes, selectedClassId]
+  )
+
+  const selectedClass = useMemo(
+    () => (currentClassIndex >= 0 ? classes[currentClassIndex] : undefined),
+    [classes, currentClassIndex]
+  )
+
+  function handlePrevClass() {
+    if (classes.length === 0) return
+    const prevIndex = currentClassIndex > 0 ? currentClassIndex - 1 : classes.length - 1
+    setSelectedClassId(Number(classes[prevIndex].id))
+  }
+
+  function handleNextClass() {
+    if (classes.length === 0) return
+    const nextIndex = currentClassIndex >= 0 && currentClassIndex < classes.length - 1 ? currentClassIndex + 1 : 0
+    setSelectedClassId(Number(classes[nextIndex].id))
+  }
+
+  const selectedCourse = useMemo(() => {
+    if (!selectedClass) return undefined
+    return courses.find((c) => Number(c.id) === Number(selectedClass.cursoId))
+  }, [courses, selectedClass])
+
+  const selectedModality = useMemo<ModalidadeCurso>(() => {
+    const courseName = selectedClass?.cursoNome || selectedCourse?.nome || ""
+    return inferModality(selectedCourse, courseName)
+  }, [selectedClass, selectedCourse])
+
+  const gridSlots = useMemo<TimeSlotDefinition[]>(() => {
+    return selectedModality === "SUPERIOR" ? SLOTS_SUPERIOR : SLOTS_INTEGRADO
+  }, [selectedModality])
+
+  const classSchedules = useMemo(() => {
+    if (!selectedClassId) return []
+    return schedules.filter((item) => Number(item.turmaId) === Number(selectedClassId))
+  }, [schedules, selectedClassId])
+
+  const selectedLessons: ScheduleLesson[] = useMemo(() => {
+    return classSchedules.map((item) => ({
+      id: String(item.id),
+      className: item.turmaNome || "",
+      subject: item.disciplinaNome || "",
+      teacher: item.professorNome || "",
+      room: item.ambienteNome || "",
+      day: item.diaSemana,
+      start: item.horarioInicio,
+      end: item.horarioFim,
+      status: item.status || "RASCUNHO",
+      rawSubject: item.disciplinaNome || "",
+      needsReview: false,
+    }))
+  }, [classSchedules])
+
+  const classesByCourse = useMemo(() => {
+    const map = new Map<string, TurmaDTO[]>()
+    classes.forEach((turma) => {
+      const courseName =
+        turma.cursoNome ||
+        courses.find((c) => Number(c.id) === Number(turma.cursoId))?.nome ||
+        "Outros Cursos"
+      if (!map.has(courseName)) map.set(courseName, [])
+      map.get(courseName)!.push(turma)
+    })
+    return Array.from(map.entries())
+  }, [classes, courses])
+
+  function openForm(record?: HorarioDTO, preset?: ScheduleInitialValues) {
+    setEditing(record ?? null)
+    setInitialValues(preset ?? null)
+    setFormOpen(true)
+  }
+
+  function handleOccupiedSlotClick(h: HorarioDTO) {
+    setSelectedLesson({
+      id: String(h.id),
+      className: h.turmaNome || selectedClass?.nome || "",
+      subject: h.disciplinaNome || "",
+      teacher: h.professorNome || "",
+      room: h.ambienteNome || "",
+      day: h.diaSemana,
+      start: h.horarioInicio,
+      end: h.horarioFim,
+      status: h.status || "RASCUNHO",
+      rawSubject: h.disciplinaNome || "",
+      needsReview: false,
+    })
+  }
+
+  function handleEditFromModal(lessonId: string) {
+    const target = schedules.find((item) => String(item.id) === String(lessonId))
+    if (target) {
+      openForm(target)
+    }
+  }
+
+  async function handleDeleteFromModal(lessonId: string) {
+    try {
+      await api.delete(`${API_ENDPOINTS.horarios}/${lessonId}`)
+      toast.success("Horário excluído com sucesso!")
+      await loadAllData()
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Erro ao excluir horário.")
+    }
+  }
+
+  function handleEmptySlotClick(day: DiaSemana, slot: TimeSlotDefinition) {
+    if (!selectedClass) {
+      toast.info("Selecione uma turma antes de adicionar um bloco de aula.")
+      return
+    }
+    openForm(undefined, {
+      cursoId: Number(selectedClass.cursoId || selectedCourse?.id || 0),
+      turmaId: Number(selectedClass.id),
+      diaSemana: day,
+      horarioInicio: slot.start,
+      horarioFim: slot.end,
+    })
+  }
+
   return (
-    <div className="admin-management">
+    <div className="admin-management horario-page">
       <div className="admin-page-heading">
         <div>
           <span>GRADE ACADÊMICA</span>
           <h1>Gerenciar horários</h1>
-          <p>Associe cursos, turmas, disciplinas, professores, blocos, ambientes e períodos.</p>
+          <p>Clique em um bloco vazio da grade para cadastrar uma aula ou em um bloco preenchido para gerenciar.</p>
         </div>
-        <button className="admin-primary" onClick={() => openForm()} disabled={loading}>
-          <AdminIcon name="plus" size={18} />
-          Adicionar horário
-        </button>
+        <div className="publish-control">
+          <span className={draftCount ? "has-drafts" : ""}>
+            {draftCount
+              ? `${draftCount} ${draftCount === 1 ? "rascunho pendente" : "rascunhos pendentes"}`
+              : "Grade publicada"}
+          </span>
+          <button
+            className="admin-primary"
+            onClick={() => setPublishConfirmation(true)}
+            disabled={loading || !draftCount}
+          >
+            <AdminIcon name="check" size={18} /> Publicar horários
+          </button>
+        </div>
       </div>
 
-      <section className="admin-surface management-surface">
-        <div className="table-toolbar">
-          <label>
-            <AdminIcon name="search" size={18} />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar por curso, turma, disciplina, professor ou ambiente..."
-            />
-          </label>
-          <span>{filtered.length} resultados</span>
-        </div>
-        <div className="admin-table-scroll">
-          <table className="admin-table schedule-admin-table">
-            <thead>
-              <tr>
-                <th>Dia e horário</th>
-                <th>Curso / Turma</th>
-                <th>Disciplina</th>
-                <th>Professor</th>
-                <th>Ambiente</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((record) => (
-                <tr key={record.id}>
-                  <td>
-                    <strong>{record.diaSemana}</strong>
-                    <small>{record.horarioInicio.substring(0, 5)}–{record.horarioFim.substring(0, 5)}</small>
-                  </td>
-                  <td>
-                    <strong>{record.turmaNome}</strong>
-                    {record.cursoNome && <small style={{ display: "block", opacity: 0.8 }}>{record.cursoNome}</small>}
-                  </td>
-                  <td>{record.disciplinaNome}</td>
-                  <td>{record.professorNome}</td>
-                  <td>{record.ambienteNome}</td>
-                  <td>
-                    <span className={`schedule-status ${(record.status || "RASCUNHO").toLocaleLowerCase("pt-BR")}`}>
-                      {record.status === "PUBLICADO" ? "Publicado" : "Rascunho"}
-                    </span>
-                  </td>
-                  <td>
-                    <button onClick={() => openForm(record)} aria-label="Editar horário">
-                      <AdminIcon name="edit" size={17} />
-                    </button>
-                    <button className="danger-action" onClick={() => setDeleting(record)} aria-label="Excluir horário">
-                      <AdminIcon name="trash" size={17} />
-                    </button>
-                  </td>
-                </tr>
+      {/* Pré-visualização interativa por turma */}
+      <section className="admin-surface horario-schedule-preview">
+        <div className="surface-heading horario-surface-heading">
+          <div>
+            <span>
+              GRADE INTERATIVA ({selectedModality === "SUPERIOR" ? "NOTURNO · 18:30–22:10" : "INTEGRADO · 07:00–18:10"})
+            </span>
+            <h2>Horário acadêmico por turma</h2>
+          </div>
+
+          <label className="admin-form-field horario-class-select">
+            <span>Selecione a turma</span>
+            <select
+              value={selectedClassId ?? ""}
+              onChange={(e) => setSelectedClassId(Number(e.target.value))}
+            >
+              {classesByCourse.map(([courseName, courseClasses]) => (
+                <optgroup key={courseName} label={courseName}>
+                  {courseClasses.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.nome}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
-            </tbody>
-          </table>
-          {!loading && !filtered.length && (
-            <div className="admin-empty">
-              <AdminIcon name="schedules" size={28} />
-              <strong>Nenhum horário encontrado</strong>
-            </div>
-          )}
+            </select>
+          </label>
         </div>
+
+        {selectedClass ? (
+          <>
+            <ScheduleHeading
+              mode="class"
+              selected={selectedClass.nome}
+              course={selectedClass.cursoNome || selectedCourse?.nome || ""}
+              lessons={selectedLessons}
+              actions={
+                <div className="horario-class-nav">
+                  <button
+                    type="button"
+                    className="horario-nav-btn"
+                    onClick={handlePrevClass}
+                    disabled={classes.length <= 1}
+                    aria-label="Turma anterior"
+                    title="Turma anterior"
+                  >
+                    <AdminIcon name="arrow" size={18} />
+                  </button>
+
+                  {classes.length > 0 && currentClassIndex >= 0 && (
+                    <span className="horario-nav-counter">
+                      {currentClassIndex + 1} / {classes.length}
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    className="horario-nav-btn next"
+                    onClick={handleNextClass}
+                    disabled={classes.length <= 1}
+                    aria-label="Próxima turma"
+                    title="Próxima turma"
+                  >
+                    <AdminIcon name="arrow" size={18} />
+                  </button>
+                </div>
+              }
+            />
+
+            <div className="schedule-scroll">
+              <div className="schedule-grid" aria-label={`Grade de ${selectedClass.nome}`}>
+                <div className="grid-header time-header">
+                  <AdminIcon name="clock" size={15} /> Horário
+                </div>
+                {DIAS_SEMANA.map((day) => (
+                  <div className="grid-header" key={day.key}>
+                    {day.label}
+                  </div>
+                ))}
+
+                {gridSlots.map((slot) => {
+                  if (slot.isBreak) {
+                    return (
+                      <div className="schedule-row" key={`${slot.start}-${slot.end}`}>
+                        <div className="time-cell break-time">
+                          <strong>{slot.breakLabel?.toUpperCase()}</strong>
+                          <span>{slot.start} – {slot.end}</span>
+                        </div>
+                        {DIAS_SEMANA.map((day) => (
+                          <div className="grid-cell break-cell" key={`${day.key}-${slot.start}`}>
+                            <div className="break-block">
+                              <strong>{slot.breakLabel}</strong>
+                              <span>{slot.start} – {slot.end}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="schedule-row" key={`${slot.start}-${slot.end}`}>
+                      <div className="time-cell">
+                        <strong>{slot.start}</strong>
+                        <span>até {slot.end}</span>
+                      </div>
+
+                      {DIAS_SEMANA.map((day) => {
+                        const cellSchedules = classSchedules.filter((h) => {
+                          if (h.diaSemana !== day.key) return false
+                          const start = h.horarioInicio.substring(0, 5)
+                          const end = h.horarioFim.substring(0, 5)
+                          return start <= slot.start && end >= slot.end
+                        })
+
+                        return (
+                          <div className="grid-cell" key={`${day.key}-${slot.start}`}>
+                            {cellSchedules.length > 0 ? (
+                              cellSchedules.map((h) => (
+                                <button
+                                  type="button"
+                                  key={h.id}
+                                  className="lesson-block"
+                                  style={{ backgroundColor: getDisciplinaColor(h.disciplinaNome || "") }}
+                                  onClick={() => handleOccupiedSlotClick(h)}
+                                  title="Clique para editar ou excluir este bloco"
+                                >
+                                  <strong>{h.disciplinaNome}</strong>
+                                  <span>{h.professorNome}</span>
+                                  <small>{h.ambienteNome}</small>
+                                  {h.status === "RASCUNHO" && <em>Rascunho</em>}
+                                </button>
+                              ))
+                            ) : (
+                              <button
+                                type="button"
+                                className="free-slot interactive-free-slot"
+                                onClick={() => handleEmptySlotClick(day.key, slot)}
+                                title={`Clique para adicionar aula em ${day.label} (${slot.start} – ${slot.end})`}
+                              >
+                                <span>Sem aula cadastrada</span>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="horario-empty-message">
+            {loading ? "Carregando turmas..." : "Nenhuma turma cadastrada."}
+          </p>
+        )}
       </section>
+
+      {selectedLesson && (
+        <AdminLessonModal
+          lesson={selectedLesson}
+          onClose={() => setSelectedLesson(null)}
+          onEdit={handleEditFromModal}
+          onDelete={handleDeleteFromModal}
+        />
+      )}
 
       <ScheduleFormModal
         open={formOpen}
         editing={editing}
+        initialValues={initialValues}
         courses={courses}
         classes={classes}
         subjects={subjects}
@@ -169,20 +659,23 @@ export default function Horario() {
         onClose={() => {
           setFormOpen(false)
           setEditing(null)
+          setInitialValues(null)
         }}
         onSaved={loadAllData}
       />
 
-      {deleting && (
-        <div className="admin-modal-layer" role="alertdialog" aria-modal="true">
-          <button className="admin-modal-backdrop" onClick={() => setDeleting(null)} aria-label="Cancelar exclusão" />
-          <section className="admin-confirm">
-            <span><AdminIcon name="warning" size={24} /></span>
-            <h2>Excluir horário?</h2>
-            <p>O bloco de <strong>{deleting.disciplinaNome}</strong> para <strong>{deleting.turmaNome}</strong> será removido.</p>
+      {publishConfirmation && (
+        <div className="admin-modal-layer" role="alertdialog" aria-modal="true" aria-labelledby="publish-title">
+          <button className="admin-modal-backdrop" onClick={() => setPublishConfirmation(false)} aria-label="Cancelar publicação" />
+          <section className="admin-confirm publish-confirm">
+            <span><AdminIcon name="schedules" size={24} /></span>
+            <h2 id="publish-title">Publicar horários?</h2>
+            <p>
+              Tem certeza de que deseja publicar os {draftCount} horários em rascunho? Após a confirmação, eles ficarão disponíveis na consulta pública.
+            </p>
             <div>
-              <button onClick={() => setDeleting(null)}>Cancelar</button>
-              <button className="confirm-delete" onClick={confirmDelete}>Excluir horário</button>
+              <button onClick={() => setPublishConfirmation(false)}>Cancelar</button>
+              <button className="confirm-publish" onClick={handlePublish}>Confirmar publicação</button>
             </div>
           </section>
         </div>

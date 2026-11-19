@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { Icon } from "@/components/Icon"
 import type { ScheduleLesson, ViewMode } from "@/types"
 
@@ -24,27 +25,19 @@ type ScheduleHeadingProps = {
   mode: ViewMode
   selected: string
   course?: string
-  periodoLetivo?: string
   lessons: ScheduleLesson[]
+  actions?: ReactNode
 }
 
 export function ScheduleHeading({
   mode,
   selected,
   course,
-  periodoLetivo,
   lessons,
+  actions,
 }: ScheduleHeadingProps) {
   const subjects = new Set(lessons.map((lesson) => lesson.subject)).size
   const classes = new Set(lessons.map((lesson) => lesson.className)).size
-
-  const resolvedPeriod =
-    periodoLetivo?.trim() ||
-    lessons
-      .map((l) => (l as ScheduleLesson & { periodoLetivo?: string }).periodoLetivo?.trim())
-      .filter((p): p is string => Boolean(p))
-      .sort((a, b) => b.localeCompare(a, "pt-BR", { numeric: true }))[0] ||
-    ""
 
   return (
     <div className="schedule-heading">
@@ -59,28 +52,29 @@ export function ScheduleHeading({
         <h1>{selected}</h1>
         <span>
           {mode === "teacher"
-            ? `Horários e turmas da grade${resolvedPeriod ? ` ${resolvedPeriod}` : ""}`
+            ? "Horários e turmas da grade"
             : mode === "room"
             ? "Aulas agendadas neste ambiente"
-            : `${course ?? "Dados conforme arquivo fornecido"}${
-                resolvedPeriod ? ` · ${resolvedPeriod}` : ""
-              }`}
+            : course ?? "Dados conforme arquivo fornecido"}
         </span>
       </div>
-      <div className="schedule-summary">
-        <div>
-          <Icon name="clock" />
-          <span>
-            <strong>{lessons.length}</strong>
-            <small>blocos na semana</small>
-          </span>
-        </div>
-        <div>
-          <Icon name="book" />
-          <span>
-            <strong>{mode === "teacher" ? classes : mode === "room" ? classes : subjects}</strong>
-            <small>{mode === "teacher" ? "turmas" : mode === "room" ? "turmas" : "disciplinas"}</small>
-          </span>
+      <div className="schedule-heading-aside">
+        {actions}
+        <div className="schedule-summary">
+          <div>
+            <Icon name="clock" />
+            <span>
+              <strong>{lessons.length}</strong>
+              <small>blocos na semana</small>
+            </span>
+          </div>
+          <div>
+            <Icon name="book" />
+            <span>
+              <strong>{mode === "teacher" ? classes : mode === "room" ? classes : subjects}</strong>
+              <small>{mode === "teacher" ? "turmas" : mode === "room" ? "turmas" : "disciplinas"}</small>
+            </span>
+          </div>
         </div>
       </div>
     </div>

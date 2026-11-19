@@ -9,6 +9,7 @@ export type AdminIconName =
   | "rooms"
   | "schedules"
   | "calendar"
+  | "clock"
   | "filePdf"
   | "search"
   | "plus"
@@ -77,6 +78,12 @@ export function AdminIcon({ name, size = 20 }: { name: AdminIconName; size?: num
     ),
     schedules: calendarSvg,
     calendar: calendarSvg,
+    clock: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 3" />
+      </>
+    ),
     filePdf: (
       <>
         <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
