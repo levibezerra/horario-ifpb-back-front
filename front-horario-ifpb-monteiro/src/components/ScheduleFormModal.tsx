@@ -9,6 +9,7 @@ import type {
   DiaSemana,
   DisciplinaDTO,
   HorarioDTO,
+  ModalidadeCurso,
   ProfessorDTO,
   TurmaDTO,
 } from "@/types/api"
@@ -16,7 +17,8 @@ import { toast } from "react-toastify"
 
 const DIAS_SEMANA: DiaSemana[] = ["SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA"]
 
-const HORARIOS_GRADE = [
+// Horários dos Cursos Integrados: 07:00 às 18:10 (16 horários -> 2 linhas de 8)
+const HORARIOS_INTEGRADO = [
   "07:00",
   "07:50",
   "08:40",
@@ -33,6 +35,10 @@ const HORARIOS_GRADE = [
   "16:30",
   "17:20",
   "18:10",
+]
+
+// Horários dos Cursos Superiores: 18:30 às 22:10 (6 horários -> 1 linha de 6)
+const HORARIOS_SUPERIOR = [
   "18:30",
   "19:20",
   "20:10",
@@ -47,6 +53,27 @@ function compareNaturalPtBr(a: string, b: string) {
 
 function sortClassesByName(list: TurmaDTO[]) {
   return [...list].sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
+}
+
+function inferModality(course?: CursoDTO): ModalidadeCurso {
+  if (course?.modalidade) return course.modalidade
+
+  const norm = (course?.nome || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+
+  if (
+    norm.includes("superior") ||
+    norm.includes("analise") ||
+    norm.includes("construcao") ||
+    norm.includes("licenciatura") ||
+    norm.includes("bacharelado") ||
+    norm.includes("tecnologia")
+  ) {
+    return "SUPERIOR"
+  }
+  return "INTEGRADO"
 }
 
 export type ScheduleInitialValues = {
@@ -99,6 +126,16 @@ export function ScheduleFormModal({
   const selectedCourse = useMemo(
     () => courses.find((c) => Number(c.id) === Number(form.cursoId)),
     [courses, form.cursoId]
+  )
+
+  const selectedModality = useMemo<ModalidadeCurso>(
+    () => inferModality(selectedCourse),
+    [selectedCourse]
+  )
+
+  const availableTimes = useMemo(
+    () => (selectedModality === "SUPERIOR" ? HORARIOS_SUPERIOR : HORARIOS_INTEGRADO),
+    [selectedModality]
   )
 
   const availableBlocos = useMemo(() => {
@@ -161,6 +198,10 @@ export function ScheduleFormModal({
       const defaultCursoId = Number(
         initialValues?.cursoId || targetTurmaFromInit?.cursoId || courses[0]?.id || 0
       )
+      const defaultCourseObj = courses.find((c) => Number(c.id) === defaultCursoId)
+      const defaultTimes =
+        inferModality(defaultCourseObj) === "SUPERIOR" ? HORARIOS_SUPERIOR : HORARIOS_INTEGRADO
+
       const defaultClasses = sortClassesByName(
         classes.filter((t) => Number(t.cursoId) === defaultCursoId)
       )
@@ -181,7 +222,7 @@ export function ScheduleFormModal({
         bloco: defaultBloco,
         ambienteId: Number(defaultRooms[0]?.id || rooms[0]?.id || 0),
         diaSemana: initialValues?.diaSemana || "SEGUNDA",
-        horarioInicio: initialValues?.horarioInicio?.substring(0, 5) || "07:00",
+        horarioInicio: initialValues?.horarioInicio?.substring(0, 5) || defaultTimes[0],
         horarioFim: initialValues?.horarioFim?.substring(0, 5) || "",
       })
     }
@@ -191,6 +232,10 @@ export function ScheduleFormModal({
   if (!open) return null
 
   function handleCursoChange(cursoId: number) {
+    const courseObj = courses.find((c) => Number(c.id) === Number(cursoId))
+    const nextTimes =
+      inferModality(courseObj) === "SUPERIOR" ? HORARIOS_SUPERIOR : HORARIOS_INTEGRADO
+
     const courseClasses = sortClassesByName(
       classes.filter((t) => Number(t.cursoId) === Number(cursoId))
     )
@@ -198,12 +243,20 @@ export function ScheduleFormModal({
       .filter((s) => Number(s.cursoId) === Number(cursoId))
       .sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
 
-    setForm((prev) => ({
-      ...prev,
-      cursoId,
-      turmaId: Number(courseClasses[0]?.id || 0),
-      disciplinaId: Number(courseSubjects[0]?.id || 0),
-    }))
+    setForm((prev) => {
+      const keepCurrentTimes =
+        nextTimes.includes(prev.horarioInicio) &&
+        (!prev.horarioFim || nextTimes.includes(prev.horarioFim))
+
+      return {
+        ...prev,
+        cursoId,
+        turmaId: Number(courseClasses[0]?.id || 0),
+        disciplinaId: Number(courseSubjects[0]?.id || 0),
+        horarioInicio: keepCurrentTimes ? prev.horarioInicio : nextTimes[0],
+        horarioFim: keepCurrentTimes ? prev.horarioFim : "",
+      }
+    })
   }
 
   function handleBlocoChange(bloco: string) {
@@ -314,6 +367,8 @@ export function ScheduleFormModal({
       setSaving(false)
     }
   }
+
+  const isSuperior = selectedModality === "SUPERIOR"
 
   return (
     <div className="admin-modal-layer" role="dialog" aria-modal="true">
@@ -433,7 +488,7 @@ export function ScheduleFormModal({
             </select>
           </label>
 
-          <div className="admin-form-field" style={{ gridColumn: "1 / -1" }}>
+          <div className="admin-form-field" style={{ gridColumn: "1 / -1", width: "100%" }}>
             <span>
               Horário (Início → Término) *{" "}
               <strong>
@@ -445,14 +500,26 @@ export function ScheduleFormModal({
               </strong>
             </span>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(84px, 1fr))",
-                gap: "8px",
-                marginTop: "6px",
-              }}
+              style={
+                isSuperior
+                  ? {
+                      display: "flex",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: "8px",
+                      marginTop: "6px",
+                      width: "100%",
+                    }
+                  : {
+                      display: "grid",
+                      gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
+                      gap: "8px",
+                      marginTop: "6px",
+                      width: "100%",
+                    }
+              }
             >
-              {HORARIOS_GRADE.map((time) => {
+              {availableTimes.map((time) => {
                 const isStart = form.horarioInicio === time
                 const isEnd = form.horarioFim === time
                 const isBetween =
@@ -484,13 +551,23 @@ export function ScheduleFormModal({
                       fontSize: "0.875rem",
                       cursor: "pointer",
                       userSelect: "none",
+                      whiteSpace: "nowrap",
+                      ...(isSuperior ? { width: "86px", boxSizing: "border-box" as const } : {}),
                     }}
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => handleToggleTime(time)}
-                      style={{ accentColor: "#2f9e41", cursor: "pointer" }}
+                      style={{
+                        accentColor: "#2f9e41",
+                        cursor: "pointer",
+                        width: "16px",
+                        height: "16px",
+                        minHeight: "16px",
+                        flex: "0 0 16px",
+                        margin: 0,
+                      }}
                     />
                     <span>{time}</span>
                   </label>

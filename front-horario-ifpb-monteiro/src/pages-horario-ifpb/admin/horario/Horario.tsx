@@ -20,6 +20,7 @@ import "./horario.css"
 import { toast } from "react-toastify"
 
 type TimeSlotDefinition = {
+  code?: string
   start: string
   end: string
   isBreak?: boolean
@@ -91,7 +92,7 @@ function AdminLessonModal({
             <span>
               <small>Dia e Horário</small>
               <strong>
-                {lesson.day} · {lesson.start.substring(0, 5)}–{lesson.end.substring(0, 5)}
+                {lesson.day} · {lesson.start.substring(0, 5)}-{lesson.end.substring(0, 5)}
               </strong>
             </span>
           </div>
@@ -194,30 +195,30 @@ const DIAS_SEMANA: { key: DiaSemana; label: string }[] = [
 
 // Faixa dos Cursos Integrados: 07:00 às 18:10
 const SLOTS_INTEGRADO: TimeSlotDefinition[] = [
-  { start: "07:00", end: "07:50" },
-  { start: "07:50", end: "08:40" },
+  { code: "M1", start: "07:00", end: "07:50" },
+  { code: "M2", start: "07:50", end: "08:40" },
   { start: "08:40", end: "09:00", isBreak: true, breakLabel: "Intervalo" },
-  { start: "09:00", end: "09:50" },
-  { start: "09:50", end: "10:40" },
-  { start: "10:40", end: "11:30" },
-  { start: "11:30", end: "12:20" },
+  { code: "M3", start: "09:00", end: "09:50" },
+  { code: "M4", start: "09:50", end: "10:40" },
+  { code: "M5", start: "10:40", end: "11:30" },
+  { code: "M6", start: "11:30", end: "12:20" },
   { start: "12:20", end: "13:00", isBreak: true, breakLabel: "Almoço" },
-  { start: "13:00", end: "13:50" },
-  { start: "13:50", end: "14:40" },
-  { start: "14:40", end: "15:30" },
+  { code: "T1", start: "13:00", end: "13:50" },
+  { code: "T2", start: "13:50", end: "14:40" },
+  { code: "T3", start: "14:40", end: "15:30" },
   { start: "15:30", end: "15:40", isBreak: true, breakLabel: "Intervalo" },
-  { start: "15:40", end: "16:30" },
-  { start: "16:30", end: "17:20" },
-  { start: "17:20", end: "18:10" },
+  { code: "T4", start: "15:40", end: "16:30" },
+  { code: "T5", start: "16:30", end: "17:20" },
+  { code: "T6", start: "17:20", end: "18:10" },
 ]
 
 // Faixa dos Cursos Superiores: 18:30 às 22:10
 const SLOTS_SUPERIOR: TimeSlotDefinition[] = [
-  { start: "18:30", end: "19:20" },
-  { start: "19:20", end: "20:10" },
+  { code: "N1", start: "18:30", end: "19:20" },
+  { code: "N2", start: "19:20", end: "20:10" },
   { start: "20:10", end: "20:30", isBreak: true, breakLabel: "Intervalo" },
-  { start: "20:30", end: "21:20" },
-  { start: "21:20", end: "22:10" },
+  { code: "N3", start: "20:30", end: "21:20" },
+  { code: "N4", start: "21:20", end: "22:10" },
 ]
 
 function compareNaturalPtBr(a: string, b: string) {
@@ -484,7 +485,7 @@ export default function Horario() {
         <div className="surface-heading horario-surface-heading">
           <div>
             <span>
-              GRADE INTERATIVA ({selectedModality === "SUPERIOR" ? "NOTURNO · 18:30–22:10" : "INTEGRADO · 07:00–18:10"})
+              GRADE INTERATIVA ({selectedModality === "SUPERIOR" ? "NOTURNO · 18:30-22:10" : "INTEGRADO · 07:00-18:10"})
             </span>
             <h2>Horário acadêmico por turma</h2>
           </div>
@@ -515,37 +516,7 @@ export default function Horario() {
               selected={selectedClass.nome}
               course={selectedClass.cursoNome || selectedCourse?.nome || ""}
               lessons={selectedLessons}
-              actions={
-                <div className="horario-class-nav">
-                  <button
-                    type="button"
-                    className="horario-nav-btn"
-                    onClick={handlePrevClass}
-                    disabled={classes.length <= 1}
-                    aria-label="Turma anterior"
-                    title="Turma anterior"
-                  >
-                    <AdminIcon name="arrow" size={18} />
-                  </button>
-
-                  {classes.length > 0 && currentClassIndex >= 0 && (
-                    <span className="horario-nav-counter">
-                      {currentClassIndex + 1} / {classes.length}
-                    </span>
-                  )}
-
-                  <button
-                    type="button"
-                    className="horario-nav-btn next"
-                    onClick={handleNextClass}
-                    disabled={classes.length <= 1}
-                    aria-label="Próxima turma"
-                    title="Próxima turma"
-                  >
-                    <AdminIcon name="arrow" size={18} />
-                  </button>
-                </div>
-              }
+              
             />
 
             <div className="schedule-scroll">
@@ -565,13 +536,13 @@ export default function Horario() {
                       <div className="schedule-row" key={`${slot.start}-${slot.end}`}>
                         <div className="time-cell break-time">
                           <strong>{slot.breakLabel?.toUpperCase()}</strong>
-                          <span>{slot.start} – {slot.end}</span>
+                          <span>{slot.start}-{slot.end}</span>
                         </div>
                         {DIAS_SEMANA.map((day) => (
                           <div className="grid-cell break-cell" key={`${day.key}-${slot.start}`}>
                             <div className="break-block">
                               <strong>{slot.breakLabel}</strong>
-                              <span>{slot.start} – {slot.end}</span>
+                              <span>{slot.start}-{slot.end}</span>
                             </div>
                           </div>
                         ))}
@@ -582,8 +553,8 @@ export default function Horario() {
                   return (
                     <div className="schedule-row" key={`${slot.start}-${slot.end}`}>
                       <div className="time-cell">
-                        <strong>{slot.start}</strong>
-                        <span>até {slot.end}</span>
+                        <strong>{slot.code}</strong>
+                        <span>{slot.start}-{slot.end}</span>
                       </div>
 
                       {DIAS_SEMANA.map((day) => {
@@ -617,7 +588,7 @@ export default function Horario() {
                                 type="button"
                                 className="free-slot interactive-free-slot"
                                 onClick={() => handleEmptySlotClick(day.key, slot)}
-                                title={`Clique para adicionar aula em ${day.label} (${slot.start} – ${slot.end})`}
+                                title={`Clique para adicionar aula em ${day.label} (${slot.code} · ${slot.start}-${slot.end})`}
                               >
                                 <span>Sem aula cadastrada</span>
                               </button>

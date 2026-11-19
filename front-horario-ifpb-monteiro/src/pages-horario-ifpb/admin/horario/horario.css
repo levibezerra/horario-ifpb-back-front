@@ -77,13 +77,6 @@
   flex-wrap: wrap;
 }
 
-.horario-class-nav {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
 .horario-nav-btn {
   width: 38px;
   height: 38px;
