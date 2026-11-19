@@ -1,1 +1,111 @@
 /* Estilos específicos podem ser adicionados aqui; o layout administrativo é compartilhado. */
+/* Card de Período Letivo no cabeçalho do Dashboard */
+.periodo-letivo-card {
+  padding: 12px 16px;
+  border: 1px solid #e2ded4;
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: 0 7px 22px rgba(35, 49, 40, 0.04);
+}
+
+.periodo-letivo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.periodo-letivo-info > small {
+  color: var(--leaf);
+  font: 700 9px/1.2 "Manrope", sans-serif;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.periodo-letivo-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.periodo-letivo-display strong {
+  color: var(--forest-deep);
+  font: 800 20px/1 "Manrope", sans-serif;
+  letter-spacing: -0.5px;
+}
+
+.periodo-letivo-form {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.periodo-letivo-form input {
+  width: 92px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  outline: 0;
+  color: var(--ink);
+  background: #faf8f3;
+  font: 700 12px "Manrope", sans-serif;
+}
+
+.periodo-letivo-form input:focus {
+  border-color: #6ab58e;
+  box-shadow: 0 0 0 3px #e5f3eb;
+}
+
+.periodo-btn-editar,
+.periodo-btn-salvar,
+.periodo-btn-cancelar {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.16s ease;
+}
+
+.periodo-btn-editar {
+  border: 1px solid #dcd8ce;
+  color: var(--forest);
+  background: #f5f2eb;
+}
+
+.periodo-btn-editar:hover {
+  border-color: #a6cdb8;
+  background: #e7f3eb;
+}
+
+.periodo-btn-salvar {
+  border: 0;
+  color: white;
+  background: var(--forest);
+  box-shadow: 0 5px 14px rgba(16, 60, 42, 0.14);
+}
+
+.periodo-btn-salvar:hover {
+  background: var(--forest-deep);
+}
+
+.periodo-btn-cancelar {
+  border: 1px solid #dedad0;
+  color: var(--muted);
+  background: white;
+}
+
+.periodo-btn-cancelar:hover {
+  background: #f8f6f1;
+}
+
+@media (max-width: 560px) {
+  .periodo-letivo-card {
+    width: 100%;
+  }
+
+  .periodo-letivo-display {
+    justify-content: space-between;
+  }
+}
