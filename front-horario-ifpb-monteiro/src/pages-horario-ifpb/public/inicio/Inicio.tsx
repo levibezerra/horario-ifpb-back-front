@@ -344,7 +344,7 @@ export default function Inicio() {
           <article className="hub-card">
             <span className="option-number">01</span>
             <div>
-              <h3>Calendário Acadêmico - Superiores</h3>
+              <h3>Calendário Acadêmico - Cursos Subsequente e Superior</h3>
               <p>Datas letivas, recessos e avaliações dos cursos superiores.</p>
             </div>
             {superiorCalendars.length > 1 ? (
@@ -395,7 +395,7 @@ export default function Inicio() {
           <article className="hub-card">
             <span className="option-number">02</span>
             <div>
-              <h3>Calendário Acadêmico - Integrados</h3>
+              <h3>Calendário Acadêmico - Cursos Integrados</h3>
               <p>Datas letivas, bimestres e recessos dos cursos técnicos integrados.</p>
             </div>
             {integradoCalendars.length > 1 ? (
