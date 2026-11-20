@@ -95,6 +95,22 @@ function filterSubjectsForCourseAndClass(
     .sort((a, b) => compareNaturalPtBr(a.nome, b.nome))
 }
 
+function filterTeachersForCourse(teachers: ProfessorDTO[], cursoId: number) {
+  if (!cursoId) return teachers
+  const matching = teachers.filter((t: any) => {
+    if (Array.isArray(t.cursoIds) && t.cursoIds.length > 0) {
+      return t.cursoIds.map(Number).includes(Number(cursoId))
+    }
+    if (Array.isArray(t.cursos) && t.cursos.length > 0) {
+      return t.cursos.some((c: any) => Number(c.id) === Number(cursoId))
+    }
+    return true
+  })
+  return (matching.length > 0 ? matching : teachers).sort((a, b) =>
+    compareNaturalPtBr(a.nome, b.nome)
+  )
+}
+
 export type ScheduleInitialValues = {
   cursoId?: number
   turmaId?: number
@@ -178,6 +194,11 @@ export function ScheduleFormModal({
     [subjects, form.cursoId, form.turmaId]
   )
 
+  const availableTeachers = useMemo(
+    () => filterTeachersForCourse(teachers, form.cursoId),
+    [teachers, form.cursoId]
+  )
+
   const availableRooms = useMemo(() => {
     if (!form.bloco) return rooms
     return rooms.filter((r) => {
@@ -228,6 +249,7 @@ export function ScheduleFormModal({
         defaultCursoId,
         defaultTurmaId
       )
+      const defaultTeachers = filterTeachersForCourse(teachers, defaultCursoId)
 
       const defaultBloco = availableBlocos[0] || ""
       const defaultRooms = rooms.filter(
@@ -238,7 +260,7 @@ export function ScheduleFormModal({
         cursoId: defaultCursoId,
         turmaId: defaultTurmaId,
         disciplinaId: Number(defaultSubjects[0]?.id || 0),
-        professorId: Number(teachers[0]?.id || 0),
+        professorId: Number(defaultTeachers[0]?.id || 0),
         bloco: defaultBloco,
         ambienteId: Number(defaultRooms[0]?.id || rooms[0]?.id || 0),
         diaSemana: initialValues?.diaSemana || "SEGUNDA",
@@ -265,6 +287,7 @@ export function ScheduleFormModal({
       cursoId,
       nextTurmaId
     )
+    const courseTeachers = filterTeachersForCourse(teachers, cursoId)
 
     setForm((prev) => {
       const keepCurrentTimes =
@@ -276,6 +299,9 @@ export function ScheduleFormModal({
         cursoId,
         turmaId: nextTurmaId,
         disciplinaId: Number(courseSubjects[0]?.id || 0),
+        professorId: courseTeachers.some((t) => Number(t.id) === Number(prev.professorId))
+          ? prev.professorId
+          : Number(courseTeachers[0]?.id || 0),
         horarioInicio: keepCurrentTimes ? prev.horarioInicio : nextTimes[0],
         horarioFim: keepCurrentTimes ? prev.horarioFim : "",
       }
@@ -377,10 +403,10 @@ export function ScheduleFormModal({
     }
 
     const payload = {
-      turmaId: form.turmaId,
-      disciplinaId: form.disciplinaId,
-      professorId: form.professorId,
-      ambienteId: form.ambienteId,
+      turmaId: Number(form.turmaId),
+      disciplinaId: Number(form.disciplinaId),
+      professorId: Number(form.professorId),
+      ambienteId: Number(form.ambienteId),
       diaSemana: form.diaSemana,
       horarioInicio: form.horarioInicio.length === 5 ? `${form.horarioInicio}:00` : form.horarioInicio,
       horarioFim: form.horarioFim.length === 5 ? `${form.horarioFim}:00` : form.horarioFim,
@@ -399,7 +425,13 @@ export function ScheduleFormModal({
       onClose()
       await onSaved()
     } catch (err: any) {
-      const msg = err.response?.data?.message || "Erro ao salvar horário."
+      const data = err.response?.data
+      const msg =
+        (typeof data === "string" && data) ||
+        data?.message ||
+        data?.detail ||
+        (Array.isArray(data?.errors) && data.errors[0]?.defaultMessage) ||
+        "Erro ao salvar horário."
       setError(msg)
       toast.error(msg)
     } finally {
@@ -479,8 +511,11 @@ export function ScheduleFormModal({
 
           <label className="admin-form-field">
             <span>Professor *</span>
-            <select value={form.professorId} onChange={(e) => setForm((c) => ({ ...c, professorId: Number(e.target.value) }))}>
-              {teachers.map((item) => (
+            <select
+              value={form.professorId}
+              onChange={(e) => setForm((c) => ({ ...c, professorId: Number(e.target.value) }))}
+            >
+              {availableTeachers.map((item) => (
                 <option key={item.id} value={item.id}>{item.nome}</option>
               ))}
             </select>

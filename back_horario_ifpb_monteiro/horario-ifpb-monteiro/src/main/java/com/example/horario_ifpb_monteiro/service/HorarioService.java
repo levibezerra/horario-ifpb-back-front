@@ -103,12 +103,31 @@ public class HorarioService {
     private void validarEntidades(Horario horario) {
         Professor prof = professorService.buscarPorId(horario.getProfessor().getId());
         Turma turma = turmaService.buscarPorId(horario.getTurma().getId());
-        disciplinaService.buscarPorId(horario.getDisciplina().getId());
+        Disciplina disciplina = disciplinaService.buscarPorId(horario.getDisciplina().getId());
         ambienteService.buscarPorId(horario.getAmbiente().getId());
 
+        Long cursoTurmaId = turma.getCurso().getId();
+
+        // 1. Valida se a disciplina está vinculada à turma ou ao curso da turma
+        boolean disciplinaPermitida = false;
+        if (disciplina.getTurmas() != null && !disciplina.getTurmas().isEmpty()) {
+            disciplinaPermitida = disciplina.getTurmas().stream()
+                    .anyMatch(t -> t.getId().equals(turma.getId()));
+        } else if (disciplina.getCursos() != null && !disciplina.getCursos().isEmpty()) {
+            disciplinaPermitida = disciplina.getCursos().stream()
+                    .anyMatch(c -> c.getId().equals(cursoTurmaId));
+        } else if (disciplina.getCurso() != null) {
+            disciplinaPermitida = disciplina.getCurso().getId().equals(cursoTurmaId);
+        }
+
+        if (!disciplinaPermitida) {
+            throw new BusinessException("A disciplina selecionada não está vinculada à turma escolhida.");
+        }
+
+        // 2. Valida se o professor leciona no curso da turma
         if (prof.getCursos() != null && !prof.getCursos().isEmpty()) {
             boolean professorPertenceAoCurso = prof.getCursos().stream()
-                    .anyMatch(c -> c.getId().equals(turma.getCurso().getId()));
+                    .anyMatch(c -> c.getId().equals(cursoTurmaId));
 
             if (!professorPertenceAoCurso) {
                 throw new BusinessException("O professor selecionado não leciona no curso da turma escolhida.");
