@@ -66,8 +66,11 @@ export function ScheduleGrid({
       return ALL_PERIODS.filter((period) => !period.break)
     }
 
-    const hasAfternoonClasses = lessons.some(
-      (lesson) => toMinutes(lesson.start) >= toMinutes("13:00"),
+    const hasAfternoonClasses = PERIODS_INTEGRADO.some(
+      (period) =>
+        !period.break &&
+        toMinutes(period.start) >= toMinutes("13:00") &&
+        lessons.some((lesson) => overlaps(lesson, period.start, period.end)),
     )
 
     const hideAfternoonOnPublicClass =
