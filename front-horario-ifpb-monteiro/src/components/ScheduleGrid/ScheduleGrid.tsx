@@ -172,11 +172,11 @@ export function ScheduleGrid({
                           <strong>{lesson.subject}</strong>
                           <span>{lesson.teacher}</span>
                           <small>
-                            <Icon name={mode === "teacher" ? "users" : "clock"} size={13} />
+                            <Icon name={mode === "teacher" || mode === "room" ? "users" : "clock"} size={13} />
                             {mode === "teacher"
                               ? `${lesson.className}${lesson.room ? ` · ${lesson.room}` : ""}`
                               : mode === "room"
-                                ? lesson.className
+                                ? `${lesson.className}${!isAdmin && lesson.courseCode ? ` · ${lesson.courseCode}` : ""}`
                                 : `${period.start}–${period.end}${lesson.room ? ` · ${lesson.room}` : ""}`}
                           </small>
                         </button>
