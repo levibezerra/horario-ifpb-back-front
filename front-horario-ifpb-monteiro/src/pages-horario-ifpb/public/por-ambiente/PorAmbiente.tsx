@@ -3,7 +3,14 @@ import { FilterSidebar } from "@/components/Sidebar"
 import { MobileSelection, ScheduleGrid, ScheduleHeading } from "@/components/ScheduleGrid"
 import { Icon } from "@/components/Icon"
 import { useFilterPanel } from "@/hooks/useFilterPanel"
-import type { AmbienteDTO, CategoriaAmbiente, HorarioDTO, ScheduleLesson } from "@/types/api"
+import type {
+  AmbienteDTO,
+  CategoriaAmbiente,
+  CursoDTO,
+  HorarioDTO,
+  ScheduleLesson,
+  TurmaDTO,
+} from "@/types/api"
 import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import "./por-ambiente.css"
@@ -18,6 +25,8 @@ const ROOM_CATEGORIES: { id: CategoriaAmbiente; label: string; caption: string }
 export default function PorAmbiente() {
   const panel = useFilterPanel()
   const [rooms, setRooms] = useState<AmbienteDTO[]>([])
+  const [classes, setClasses] = useState<TurmaDTO[]>([])
+  const [courses, setCourses] = useState<CursoDTO[]>([])
   const [schedules, setSchedules] = useState<HorarioDTO[]>([])
   const [category, setCategory] = useState<CategoriaAmbiente>("SALA")
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null)
@@ -26,11 +35,15 @@ export default function PorAmbiente() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [resRooms, resSchedules] = await Promise.all([
+        const [resRooms, resClasses, resCourses, resSchedules] = await Promise.all([
           api.get<AmbienteDTO[]>(API_ENDPOINTS.ambientes),
+          api.get<TurmaDTO[]>(API_ENDPOINTS.turmas),
+          api.get<CursoDTO[]>(API_ENDPOINTS.cursos),
           api.get<HorarioDTO[]>(API_ENDPOINTS.horarios),
         ])
         setRooms(resRooms.data)
+        setClasses(resClasses.data)
+        setCourses(resCourses.data)
         setSchedules(resSchedules.data.filter((h) => h.status === "PUBLICADO"))
       } catch (err) {
         console.error("Erro ao carregar consulta por ambiente", err)
@@ -39,6 +52,27 @@ export default function PorAmbiente() {
     loadData()
   }, [])
 
+  const courseInfoByClassId = useMemo(() => {
+    const courseById = new Map<number, CursoDTO>()
+    courses.forEach((course) => {
+      if (course.id != null) {
+        courseById.set(Number(course.id), course)
+      }
+    })
+
+    const map = new Map<number, { name: string; code: string }>()
+    classes.forEach((turma) => {
+      if (turma.id != null) {
+        const course = courseById.get(Number(turma.cursoId))
+        map.set(Number(turma.id), {
+          name: turma.cursoNome || course?.nome || "",
+          code: course?.codigo?.trim() || "",
+        })
+      }
+    })
+    return map
+  }, [classes, courses])
+
   const roomsInCategory = useMemo(() => {
     const q = query.toLocaleLowerCase("pt-BR")
     return rooms
@@ -46,7 +80,7 @@ export default function PorAmbiente() {
       .filter(
         (room) =>
           room.nome.toLocaleLowerCase("pt-BR").includes(q) ||
-          (room.localizacao || "").toLocaleLowerCase("pt-BR").includes(q)
+          (room.localizacao || "").toLocaleLowerCase("pt-BR").includes(q),
       )
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
   }, [category, query, rooms])
@@ -67,24 +101,31 @@ export default function PorAmbiente() {
     if (!selectedRoomId) return []
     return schedules
       .filter((item) => item.ambienteId === selectedRoomId)
-      .map((item) => ({
-        id: String(item.id),
-        className: item.turmaNome || "",
-        subject: item.disciplinaNome || "",
-        teacher: item.professorNome || "",
-        room: item.ambienteNome || "",
-        day: item.diaSemana,
-        start: item.horarioInicio,
-        end: item.horarioFim,
-        status: item.status || "PUBLICADO",
-        rawSubject: item.disciplinaNome || "",
-        needsReview: false,
-      }))
-  }, [schedules, selectedRoomId])
+      .map((item) => {
+        const courseInfo = courseInfoByClassId.get(Number(item.turmaId))
+        const courseName = item.cursoNome || courseInfo?.name || ""
+        const courseCode = courseInfo?.code || ""
+
+        return {
+          id: String(item.id),
+          className: item.turmaNome || "",
+          courseName,
+          courseCode,
+          subject: item.disciplinaNome || "",
+          teacher: item.professorNome || "",
+          room: item.ambienteNome || "",
+          day: item.diaSemana,
+          start: item.horarioInicio,
+          end: item.horarioFim,
+          status: item.status || "PUBLICADO",
+          rawSubject: item.disciplinaNome || "",
+          needsReview: false,
+        }
+      })
+  }, [schedules, selectedRoomId, courseInfoByClassId])
 
   const activeCategoryObj = ROOM_CATEGORIES.find((item) => item.id === category)!
 
-  // Agrupa os ambientes da categoria atual pelo Bloco / Localização
   const groups = useMemo(() => {
     const groupsMap = new Map<string, { id: string; label: string }[]>()
 
