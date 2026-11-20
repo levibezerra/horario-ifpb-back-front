@@ -86,13 +86,13 @@ export function inferModalityFromText(text = ""): ModalidadeCurso | null {
 export function getBreakTitle(start: string): string {
   switch (start) {
     case "08:40":
-      return "Intervalo para o lanche da manhã"
+      return "Intervalo"
     case "15:30":
-      return "Intervalo para o lanche da tarde"
+      return "Intervalo"
     case "12:20":
-      return "Pausa para o almoço"
+      return "Almoço"
     case "20:10":
-      return "Pausa para o jantar"
+      return "Jantar"
     default:
       return "Intervalo"
   }
