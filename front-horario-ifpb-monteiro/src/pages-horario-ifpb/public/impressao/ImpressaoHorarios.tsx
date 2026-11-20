@@ -110,6 +110,16 @@ export default function ImpressaoHorarios() {
     loadData()
   }, [kind, value, passedTitle])
 
+  const handleDownloadCalendarPdf = () => {
+    if (!calendarPdfBlobUrl) return
+    const link = document.createElement("a")
+    link.href = calendarPdfBlobUrl
+    link.download = calendarFileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const toLesson = (item: HorarioDTO): ScheduleLesson => ({
     id: String(item.id),
     className: item.turmaNome || "",
@@ -196,24 +206,14 @@ export default function ImpressaoHorarios() {
           <strong>Pré-visualização do documento</strong>
           <p>Confira o conteúdo antes de imprimir ou salvar.</p>
         </div>
-        {kind === "calendario" && calendarPdfBlobUrl ? (
-          <a
-            href={calendarPdfBlobUrl}
-            download={calendarFileName}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "10px 18px",
-              borderRadius: "10px",
-              backgroundColor: "#2f9e41",
-              color: "#fff",
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
+        {kind === "calendario" ? (
+          <button
+            type="button"
+            onClick={handleDownloadCalendarPdf}
+            disabled={!calendarPdfBlobUrl}
           >
             Baixar PDF
-          </a>
+          </button>
         ) : (
           <button onClick={() => window.print()}>Imprimir ou salvar em PDF</button>
         )}
