@@ -268,8 +268,8 @@ export default function CalendarioAcademico() {
 
       toast.success(
         editing
-          ? "calendário acadêmico atualizado(a) com sucesso!"
-          : "calendário acadêmico cadastrado(a) com sucesso!",
+          ? "Calendário acadêmico atualizado(a) com sucesso!"
+          : "Calendário acadêmico cadastrado(a) com sucesso!",
       )
       setFormOpen(false)
       loadData()

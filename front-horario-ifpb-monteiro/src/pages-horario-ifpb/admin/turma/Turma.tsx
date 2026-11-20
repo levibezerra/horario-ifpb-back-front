@@ -126,7 +126,7 @@ export default function Turma() {
       }
 
       toast.success(
-        editing ? "turma atualizado(a) com sucesso!" : "turma cadastrado(a) com sucesso!",
+        editing ? "Turma atualizado(a) com sucesso!" : "Turma cadastrado(a) com sucesso!",
       )
       setFormOpen(false)
       loadData()

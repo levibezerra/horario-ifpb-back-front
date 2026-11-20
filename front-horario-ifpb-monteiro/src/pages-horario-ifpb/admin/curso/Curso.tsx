@@ -122,7 +122,7 @@ export default function Curso() {
       }
 
       toast.success(
-        editing ? "curso atualizado(a) com sucesso!" : "curso cadastrado(a) com sucesso!",
+        editing ? "Curso atualizado(a) com sucesso!" : "Curso cadastrado(a) com sucesso!",
       )
       setFormOpen(false)
       loadData()

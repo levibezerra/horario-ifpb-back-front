@@ -117,7 +117,7 @@ export default function Ambiente() {
       }
 
       toast.success(
-        editing ? "ambiente atualizado(a) com sucesso!" : "ambiente cadastrado(a) com sucesso!",
+        editing ? "Ambiente atualizado(a) com sucesso!" : "Ambiente cadastrado(a) com sucesso!",
       )
       setFormOpen(false)
       loadData()

@@ -142,8 +142,8 @@ export default function Professor() {
 
       toast.success(
         editing
-          ? "professor atualizado(a) com sucesso!"
-          : "professor cadastrado(a) com sucesso!",
+          ? "Professor atualizado(a) com sucesso!"
+          : "Professor cadastrado(a) com sucesso!",
       )
       setFormOpen(false)
       loadData()
