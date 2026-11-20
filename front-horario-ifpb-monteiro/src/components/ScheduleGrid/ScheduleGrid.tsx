@@ -66,12 +66,24 @@ export function ScheduleGrid({
       return ALL_PERIODS.filter((period) => !period.break)
     }
 
+    const hasAfternoonClasses = lessons.some(
+      (lesson) => toMinutes(lesson.start) >= toMinutes("13:00"),
+    )
+
+    const hideAfternoonOnPublicClass =
+      !isAdmin && mode === "class" && !hasAfternoonClasses
+
+    const filterUntilLunch = (list: typeof PERIODS_INTEGRADO) =>
+      hideAfternoonOnPublicClass
+        ? list.filter((period) => toMinutes(period.start) < toMinutes("13:00"))
+        : list
+
     // Quando há aula publicada na turma/curso, exibe a grade completa do turno do curso
     if (resolvedModality === "SUPERIOR") {
       return PERIODS_SUPERIOR
     }
     if (resolvedModality === "INTEGRADO") {
-      return PERIODS_INTEGRADO
+      return filterUntilLunch(PERIODS_INTEGRADO)
     }
 
     // Para visão de Professor ou Ambiente (que podem ter aulas em mais de um curso/turno),
@@ -89,8 +101,8 @@ export function ScheduleGrid({
     if (hasNightClasses) {
       return PERIODS_SUPERIOR
     }
-    return PERIODS_INTEGRADO
-  }, [lessons, showEmptyPeriods, modality, courseName, mode, label])
+    return filterUntilLunch(PERIODS_INTEGRADO)
+  }, [lessons, showEmptyPeriods, modality, courseName, mode, label, isAdmin])
 
   const emptyDays = DAYS.filter(
     (day) => !lessons.some((lesson) => lesson.day === day),
