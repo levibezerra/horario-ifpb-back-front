@@ -142,6 +142,7 @@ export type DayName = DiaSemana | "Segunda" | "Terça" | "Quarta" | "Quinta" | "
 export type ScheduleLesson = {
   id?: string
   className: string
+  courseCode?: string
   day: DayName
   start: string
   end: string
