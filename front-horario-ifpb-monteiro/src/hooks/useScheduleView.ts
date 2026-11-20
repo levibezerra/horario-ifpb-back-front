@@ -8,6 +8,16 @@ export function useScheduleView(mode: ViewMode) {
   const [query, setQuery] = useState("")
   const { classes, teachers, publishedSchedules: schedules } = useAdminData()
 
+  const courseByClassId = useMemo(() => {
+    const map = new Map<number, string>()
+    classes.forEach((c) => {
+      if (c.id != null && c.cursoNome) {
+        map.set(c.id, c.cursoNome)
+      }
+    })
+    return map
+  }, [classes])
+
   const groups = useMemo(() => {
     if (mode === "class") {
       const byCourse = new Map<string, Array<{ id: string; label: string }>>()
@@ -84,6 +94,7 @@ export function useScheduleView(mode: ViewMode) {
       .map((item) => ({
         id: String(item.id),
         className: item.turmaNome || "",
+        courseName: item.cursoNome || courseByClassId.get(item.turmaId) || "",
         subject: item.disciplinaNome || "",
         teacher: item.professorNome || "",
         room: item.ambienteNome || "",
@@ -94,7 +105,7 @@ export function useScheduleView(mode: ViewMode) {
         rawSubject: item.disciplinaNome || "",
         needsReview: false,
       }))
-  }, [mode, selected, schedules])
+  }, [mode, selected, schedules, courseByClassId])
 
   const selectedCourse = groups.find((group) =>
     group.items.some((i) => i.id === selected),
