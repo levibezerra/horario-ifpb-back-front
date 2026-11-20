@@ -12,7 +12,19 @@ const byPtBr = (a: string, b: string) => a.localeCompare(b, "pt-BR")
 
 export function ProfessorCard({ name, lessons, professorData }: ProfessorCardProps) {
   const subjects = [...new Set(lessons.map((lesson) => lesson.subject))].sort(byPtBr)
-  const classes = [...new Set(lessons.map((lesson) => lesson.className))].sort(byPtBr)
+
+  const classes = [
+    ...new Set(
+      lessons
+        .filter((lesson) => lesson.className)
+        .map((lesson) =>
+          lesson.courseCode
+            ? `${lesson.className} (${lesson.courseCode})`
+            : lesson.className,
+        ),
+    ),
+  ].sort(byPtBr)
+
   const courses = professorData?.cursosNomes || []
 
   // Normaliza o link do Lattes para garantir que abra em uma nova aba com protocolo completo
