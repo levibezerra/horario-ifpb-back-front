@@ -3,7 +3,13 @@ import { FilterSidebar } from "@/components/Sidebar"
 import { ProfessorCard } from "@/components/ProfessorCard"
 import { MobileSelection, ScheduleGrid, ScheduleHeading } from "@/components/ScheduleGrid"
 import { useFilterPanel } from "@/hooks/useFilterPanel"
-import type { HorarioDTO, ProfessorDTO, ScheduleLesson } from "@/types/api"
+import type {
+  CursoDTO,
+  HorarioDTO,
+  ProfessorDTO,
+  ScheduleLesson,
+  TurmaDTO,
+} from "@/types/api"
 import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import "./por-professor.css"
@@ -11,6 +17,8 @@ import "./por-professor.css"
 export default function PorProfessor() {
   const panel = useFilterPanel()
   const [teachers, setTeachers] = useState<ProfessorDTO[]>([])
+  const [classes, setClasses] = useState<TurmaDTO[]>([])
+  const [courses, setCourses] = useState<CursoDTO[]>([])
   const [schedules, setSchedules] = useState<HorarioDTO[]>([])
   const [selectedProfId, setSelectedProfId] = useState<number | null>(null)
   const [query, setQuery] = useState("")
@@ -18,11 +26,15 @@ export default function PorProfessor() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [resTeachers, resSchedules] = await Promise.all([
+        const [resTeachers, resClasses, resCourses, resSchedules] = await Promise.all([
           api.get<ProfessorDTO[]>(API_ENDPOINTS.professores),
+          api.get<TurmaDTO[]>(API_ENDPOINTS.turmas),
+          api.get<CursoDTO[]>(API_ENDPOINTS.cursos),
           api.get<HorarioDTO[]>(API_ENDPOINTS.horarios),
         ])
         setTeachers(resTeachers.data)
+        setClasses(resClasses.data)
+        setCourses(resCourses.data)
         setSchedules(resSchedules.data.filter((h) => h.status === "PUBLICADO"))
         if (resTeachers.data.length > 0) setSelectedProfId(resTeachers.data[0].id!)
       } catch (err) {
@@ -32,29 +44,58 @@ export default function PorProfessor() {
     loadData()
   }, [])
 
+  const courseInfoByClassId = useMemo(() => {
+    const courseById = new Map<number, CursoDTO>()
+    courses.forEach((course) => {
+      if (course.id != null) {
+        courseById.set(Number(course.id), course)
+      }
+    })
+
+    const map = new Map<number, { name: string; code: string }>()
+    classes.forEach((turma) => {
+      if (turma.id != null) {
+        const course = courseById.get(Number(turma.cursoId))
+        map.set(Number(turma.id), {
+          name: turma.cursoNome || course?.nome || "",
+          code: course?.codigo?.trim() || "",
+        })
+      }
+    })
+    return map
+  }, [classes, courses])
+
   const selectedTeacher = useMemo(
     () => teachers.find((t) => t.id === selectedProfId),
-    [teachers, selectedProfId]
+    [teachers, selectedProfId],
   )
 
   const lessons: ScheduleLesson[] = useMemo(() => {
     if (!selectedProfId) return []
     return schedules
       .filter((item) => item.professorId === selectedProfId)
-      .map((item) => ({
-        id: String(item.id),
-        className: item.turmaNome || "",
-        subject: item.disciplinaNome || "",
-        teacher: item.professorNome || "",
-        room: item.ambienteNome || "",
-        day: item.diaSemana,
-        start: item.horarioInicio,
-        end: item.horarioFim,
-        status: item.status || "PUBLICADO",
-        rawSubject: item.disciplinaNome || "",
-        needsReview: false,
-      }))
-  }, [schedules, selectedProfId])
+      .map((item) => {
+        const courseInfo = courseInfoByClassId.get(Number(item.turmaId))
+        const courseName = item.cursoNome || courseInfo?.name || ""
+        const courseCode = courseInfo?.code || ""
+
+        return {
+          id: String(item.id),
+          className: item.turmaNome || "",
+          courseName,
+          courseCode,
+          subject: item.disciplinaNome || "",
+          teacher: item.professorNome || "",
+          room: item.ambienteNome || "",
+          day: item.diaSemana,
+          start: item.horarioInicio,
+          end: item.horarioFim,
+          status: item.status || "PUBLICADO",
+          rawSubject: item.disciplinaNome || "",
+          needsReview: false,
+        }
+      })
+  }, [schedules, selectedProfId, courseInfoByClassId])
 
   // Agrupa os professores pelos cursos aos quais estão vinculados
   const filteredGroups = useMemo(() => {
@@ -64,7 +105,7 @@ export default function PorProfessor() {
     const filteredTeachers = teachers.filter(
       (t) =>
         t.nome.toLocaleLowerCase("pt-BR").includes(q) ||
-        (t.cursosNomes ?? []).some((c) => c.toLocaleLowerCase("pt-BR").includes(q))
+        (t.cursosNomes ?? []).some((c) => c.toLocaleLowerCase("pt-BR").includes(q)),
     )
 
     const groupsMap = new Map<string, { id: string; label: string }[]>()
