@@ -1,8 +1,9 @@
-import type { DiaSemana, Period, ScheduleLesson } from "@/types/api"
+import type { DiaSemana, ModalidadeCurso, Period, ScheduleLesson } from "@/types/api"
 
 export const DAYS: DiaSemana[] = ["SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA"]
 
-export const ALL_PERIODS: Period[] = [
+// Faixa dos Cursos Integrados: 07:00 às 18:10
+export const PERIODS_INTEGRADO: Period[] = [
   { code: "M1", start: "07:00", end: "07:50" },
   { code: "M2", start: "07:50", end: "08:40" },
   { code: "INTERVALO MANHÃ", start: "08:40", end: "09:00", break: true },
@@ -18,11 +19,20 @@ export const ALL_PERIODS: Period[] = [
   { code: "T4", start: "15:40", end: "16:30" },
   { code: "T5", start: "16:30", end: "17:20" },
   { code: "T6", start: "17:20", end: "18:10" },
+]
+
+// Faixa dos Cursos Superiores: 18:30 às 22:10
+export const PERIODS_SUPERIOR: Period[] = [
   { code: "N1", start: "18:30", end: "19:20" },
   { code: "N2", start: "19:20", end: "20:10" },
   { code: "JANTAR", start: "20:10", end: "20:30", break: true },
   { code: "N3", start: "20:30", end: "21:20" },
   { code: "N4", start: "21:20", end: "22:10" },
+]
+
+export const ALL_PERIODS: Period[] = [
+  ...PERIODS_INTEGRADO,
+  ...PERIODS_SUPERIOR,
 ]
 
 export function toMinutes(time: string): number {
@@ -35,6 +45,42 @@ export function overlaps(lesson: ScheduleLesson, start: string, end: string): bo
     toMinutes(lesson.start) < toMinutes(end) &&
     toMinutes(lesson.end) > toMinutes(start)
   )
+}
+
+export function inferModalityFromText(text = ""): ModalidadeCurso | null {
+  const norm = text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+
+  if (!norm.trim()) return null
+
+  if (
+    norm.includes("superior") ||
+    norm.includes("analise") ||
+    norm.includes("ads") ||
+    norm.includes("construcao") ||
+    norm.includes("licenciatura") ||
+    norm.includes("bacharelado") ||
+    norm.includes("tecnologia") ||
+    norm.includes("periodo")
+  ) {
+    return "SUPERIOR"
+  }
+
+  if (
+    norm.includes("integrado") ||
+    norm.includes("tecnico") ||
+    norm.includes("informatica") ||
+    norm.includes("instrumento") ||
+    norm.includes("manutencao") ||
+    norm.includes("edificacoes") ||
+    norm.includes("ano")
+  ) {
+    return "INTEGRADO"
+  }
+
+  return null
 }
 
 export function getBreakTitle(start: string): string {

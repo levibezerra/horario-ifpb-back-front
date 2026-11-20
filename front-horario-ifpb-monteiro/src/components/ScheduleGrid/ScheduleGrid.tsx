@@ -2,11 +2,14 @@ import { useMemo, useState } from "react"
 import { Icon } from "@/components/Icon"
 import { useNavigate } from "react-router-dom"
 import { professorPath } from "@/routes/paths"
-import type { ScheduleLesson, ViewMode } from "@/types/api"
+import type { ModalidadeCurso, ScheduleLesson, ViewMode } from "@/types/api"
 import {
   ALL_PERIODS,
   DAYS,
+  PERIODS_INTEGRADO,
+  PERIODS_SUPERIOR,
   getBreakTitle,
+  inferModalityFromText,
   overlaps,
   toMinutes,
 } from "@/services/scheduleService"
@@ -18,6 +21,8 @@ type ScheduleGridProps = {
   lessons: ScheduleLesson[]
   mode: ViewMode
   label: string
+  courseName?: string
+  modality?: ModalidadeCurso
   showEmptyPeriods?: boolean
   isAdmin?: boolean
   onEditLesson?: (lessonId: string) => void
@@ -28,6 +33,8 @@ export function ScheduleGrid({
   lessons,
   mode,
   label,
+  courseName,
+  modality,
   showEmptyPeriods = false,
   isAdmin = false,
   onEditLesson,
@@ -47,32 +54,43 @@ export function ScheduleGrid({
   const currentDay = dayMap[todayIndex]
 
   const periods = useMemo(() => {
-    const hasMorningClasses = lessons.some(
-      (lesson) => toMinutes(lesson.start) < toMinutes("12:20"),
-    )
-    const hasAfternoonClasses = lessons.some(
-      (lesson) =>
-        toMinutes(lesson.start) >= toMinutes("13:00") &&
-        toMinutes(lesson.start) < toMinutes("18:30"),
+    const resolvedModality =
+      modality ||
+      inferModalityFromText(courseName || "") ||
+      (mode === "class" ? inferModalityFromText(label) : null)
+
+    if (!lessons.length) {
+      if (!showEmptyPeriods) return []
+      if (resolvedModality === "SUPERIOR") return PERIODS_SUPERIOR
+      if (resolvedModality === "INTEGRADO") return PERIODS_INTEGRADO
+      return ALL_PERIODS.filter((period) => !period.break)
+    }
+
+    // Quando há aula publicada na turma/curso, exibe a grade completa do turno do curso
+    if (resolvedModality === "SUPERIOR") {
+      return PERIODS_SUPERIOR
+    }
+    if (resolvedModality === "INTEGRADO") {
+      return PERIODS_INTEGRADO
+    }
+
+    // Para visão de Professor ou Ambiente (que podem ter aulas em mais de um curso/turno),
+    // exibe todos os blocos completos das faixas onde há aula publicada
+    const hasDaytimeClasses = lessons.some(
+      (lesson) => toMinutes(lesson.start) < toMinutes("18:30"),
     )
     const hasNightClasses = lessons.some(
       (lesson) => toMinutes(lesson.start) >= toMinutes("18:30"),
     )
 
-    if (showEmptyPeriods && !lessons.length)
-      return ALL_PERIODS.filter((period) => !period.break)
-
-    return ALL_PERIODS.filter((period) => {
-      if (period.break) {
-        if (period.start === "08:40") return hasMorningClasses
-        if (period.start === "12:20") return hasMorningClasses || hasAfternoonClasses
-        if (period.start === "15:30") return hasAfternoonClasses
-        if (period.start === "20:10") return hasNightClasses
-        return false
-      }
-      return lessons.some((lesson) => overlaps(lesson, period.start, period.end))
-    })
-  }, [lessons, showEmptyPeriods])
+    if (hasDaytimeClasses && hasNightClasses) {
+      return ALL_PERIODS
+    }
+    if (hasNightClasses) {
+      return PERIODS_SUPERIOR
+    }
+    return PERIODS_INTEGRADO
+  }, [lessons, showEmptyPeriods, modality, courseName, mode, label])
 
   const emptyDays = DAYS.filter(
     (day) => !lessons.some((lesson) => lesson.day === day),
