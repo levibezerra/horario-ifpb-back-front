@@ -1,1 +1,63 @@
 /* A página reutiliza a identidade de impressão definida no estilo global. */
+
+/* Ajustes do cabeçalho da grade na página de impressão e no PDF */
+.print-page .schedule-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.print-page .schedule-heading > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.print-page .schedule-heading h1 {
+  font-size: 1.45rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.print-page .schedule-heading > div:first-child > span {
+  display: block;
+  white-space: nowrap;
+}
+
+.print-page .schedule-heading-aside {
+  flex: 0 0 auto;
+}
+
+@media print {
+  .print-page .schedule-heading {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+  }
+
+  .print-page .schedule-heading > div:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .print-page .schedule-heading h1 {
+    font-size: 1.25rem !important;
+    white-space: nowrap !important;
+  }
+
+  .print-page .schedule-heading > div:first-child > span {
+    font-size: 0.85rem !important;
+    white-space: nowrap !important;
+  }
+
+  .print-page .schedule-summary {
+    flex-shrink: 0 !important;
+    gap: 8px !important;
+  }
+
+  .print-page .schedule-summary > div {
+    padding: 6px 10px !important;
+  }
+}
