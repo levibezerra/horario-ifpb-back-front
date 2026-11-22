@@ -118,6 +118,19 @@ export default function CalendarioAcademico() {
     )
   }, [records, query])
 
+  const selectedRecords = useMemo(
+    () => records.filter((record) => selectedScheduleIds.includes(record.id)),
+    [records, selectedScheduleIds],
+  )
+
+  const hasDraftSelected = selectedRecords.some(
+    (record) => record.statusCalendario !== StatusCalendarioAcademico.PUBLICADO,
+  )
+
+  const hasPublishedSelected = selectedRecords.some(
+    (record) => record.statusCalendario === StatusCalendarioAcademico.PUBLICADO,
+  )
+
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((record) => selectedScheduleIds.includes(record.id))
 
@@ -138,18 +151,22 @@ export default function CalendarioAcademico() {
   }
 
   async function handlePublishSelectedSchedules() {
-    if (selectedScheduleIds.length === 0) {
-      toast.warning("Selecione pelo menos um calendário acadêmico para publicar.")
+    const idsToPublish = selectedRecords
+      .filter((r) => r.statusCalendario !== StatusCalendarioAcademico.PUBLICADO)
+      .map((r) => r.id)
+
+    if (idsToPublish.length === 0) {
+      toast.warning("Selecione pelo menos um calendário em rascunho para publicar.")
       return
     }
 
     try {
       setBulkActionLoading(true)
-      for (const id of selectedScheduleIds) {
+      for (const id of idsToPublish) {
         await api.patch(`${ACADEMIC_CALENDARS_ENDPOINT}/${id}/publicar`)
       }
       toast.success(
-        selectedScheduleIds.length === 1
+        idsToPublish.length === 1
           ? "Calendário acadêmico publicado na área pública!"
           : "Calendários acadêmicos selecionados publicados na área pública!",
       )
@@ -164,14 +181,18 @@ export default function CalendarioAcademico() {
   }
 
   async function handleUnpublishSelectedSchedules() {
-    if (selectedScheduleIds.length === 0) {
-      toast.warning("Selecione pelo menos um calendário acadêmico para remover da área pública.")
+    const idsToUnpublish = selectedRecords
+      .filter((r) => r.statusCalendario === StatusCalendarioAcademico.PUBLICADO)
+      .map((r) => r.id)
+
+    if (idsToUnpublish.length === 0) {
+      toast.warning("Selecione pelo menos um calendário publicado para remover da área pública.")
       return
     }
 
     try {
       setBulkActionLoading(true)
-      for (const id of selectedScheduleIds) {
+      for (const id of idsToUnpublish) {
         try {
           await api.patch(`${ACADEMIC_CALENDARS_ENDPOINT}/${id}/despublicar`)
         } catch {
@@ -186,7 +207,7 @@ export default function CalendarioAcademico() {
         }
       }
       toast.success(
-        selectedScheduleIds.length === 1
+        idsToUnpublish.length === 1
           ? "Calendário acadêmico removido da área pública!"
           : "Calendários acadêmicos selecionados removidos da área pública!",
       )
@@ -312,7 +333,7 @@ export default function CalendarioAcademico() {
             type="button"
             className="admin-primary"
             onClick={handlePublishSelectedSchedules}
-            disabled={loading || bulkActionLoading || selectedScheduleIds.length === 0}
+            disabled={loading || bulkActionLoading || !hasDraftSelected}
           >
             <AdminIcon name="check" size={18} />
             Publicar
@@ -322,7 +343,7 @@ export default function CalendarioAcademico() {
             type="button"
             className="calendario-unpublish-btn"
             onClick={handleUnpublishSelectedSchedules}
-            disabled={loading || bulkActionLoading || selectedScheduleIds.length === 0}
+            disabled={loading || bulkActionLoading || !hasPublishedSelected}
           >
             <AdminIcon name="close" size={18} />
             Remover da área pública
@@ -499,7 +520,39 @@ export default function CalendarioAcademico() {
                   const file = e.target.files?.[0] || null
                   setForm((c) => ({ ...c, pdfFile: file }))
                 }}
+                style={{ display: "none" }}
               />
+              <div
+                style={{
+                  minHeight: "44px",
+                  padding: "0 11px",
+                  border: "1px solid var(--line)",
+                  borderRadius: "10px",
+                  display: "flex",
+                  alignItems: "center",
+                  background: "#faf8f3",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  color: "var(--ink)",
+                }}
+              >
+                <span
+                  style={{
+                    padding: "5px 10px",
+                    border: "1px solid #dcd8ce",
+                    borderRadius: "7px",
+                    background: "white",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    color: "var(--forest)",
+                  }}
+                >
+                  Escolher arquivo
+                </span>
+              </div>
+              {form.pdfFile && (
+                <small>Arquivo selecionado: {form.pdfFile.name}</small>
+              )}
               {editing?.fileName && !form.pdfFile && (
                 <small>Arquivo atual: {editing.fileName}</small>
               )}
@@ -520,8 +573,7 @@ export default function CalendarioAcademico() {
                 }
               />
               <span>
-                <strong>Publicar na área pública</strong> (disponibilizar imediatamente para
-                download na tela inicial)
+                <strong>Publicar na área pública</strong>
               </span>
             </label>
 
@@ -536,7 +588,7 @@ export default function CalendarioAcademico() {
                     ? "Enviando..."
                     : editing
                     ? "Salvar alterações"
-                    : "Salvar e enviar PDF"
+                    : "Salvar"
                 }
               />
             </div>
