@@ -659,6 +659,7 @@
 
 .admin-content {
   width: min(1420px, 100%);
+  margin: 0 auto;
   padding: 31px;
 }
 
@@ -692,65 +693,6 @@
   background: #fff4d4;
   font-size: 8px;
   font-weight: 700;
-}
-
-.indicator-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(150px, 1fr));
-  gap: 12px;
-}
-
-.indicator-card {
-  min-height: 156px;
-  padding: 17px;
-  border: 1px solid #e2ded4;
-  border-radius: 16px;
-  color: inherit;
-  background: var(--paper);
-  text-align: left;
-  box-shadow: 0 7px 22px rgba(35, 49, 40, 0.04);
-  transition: 0.18s ease;
-}
-
-.indicator-card:hover {
-  transform: translateY(-2px);
-  border-color: #a6cdb8;
-  box-shadow: 0 12px 28px rgba(35, 49, 40, 0.08);
-}
-
-.indicator-card > span {
-  width: 40px;
-  height: 40px;
-  margin-bottom: 13px;
-  border-radius: 11px;
-  display: grid;
-  place-items: center;
-  color: var(--leaf);
-  background: #e7f3eb;
-}
-
-.indicator-card > strong,
-.indicator-card > div,
-.indicator-card > small {
-  display: block;
-}
-
-.indicator-card > strong {
-  color: var(--forest-deep);
-  font: 800 23px "Manrope";
-}
-
-.indicator-card > div {
-  margin-top: 2px;
-  color: #4c5c53;
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.indicator-card > small {
-  margin-top: 7px;
-  color: #939c97;
-  font-size: 7px;
 }
 
 .dashboard-grid {

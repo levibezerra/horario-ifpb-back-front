@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { useLocation, useNavigate } from "react-router-dom"
 import { ROUTES } from "@/routes/paths"
 import "@/style/admin.css"
+import "@/pages-horario-ifpb/admin/dashboard/dashboard.css"
 import { AdminProfileModal } from "@/components/AdminProfileModal"
 
 export function AdminLayout({ children }: { children: ReactNode }) {

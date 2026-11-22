@@ -9,6 +9,7 @@ export type AdminIconName =
   | "rooms"
   | "schedules"
   | "calendar"
+  | "semester"
   | "clock"
   | "filePdf"
   | "search"
@@ -78,6 +79,15 @@ export function AdminIcon({ name, size = 20 }: { name: AdminIconName; size?: num
     ),
     schedules: calendarSvg,
     calendar: calendarSvg,
+    semester: (
+      <>
+        <rect x="3" y="4" width="18" height="17" rx="2" />
+        <path d="M8 2v4M16 2v4M3 9h18" />
+        <path d="M12 9v12" />
+        <path d="m6.5 15 1.5 1.5 2.5-3" />
+        <path d="M15 14h3M15 17h2" />
+      </>
+    ),
     clock: (
       <>
         <circle cx="12" cy="12" r="9" />
