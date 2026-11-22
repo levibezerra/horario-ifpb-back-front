@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Icon } from "@/components/Icon"
 import { useLocation } from "react-router-dom"
 import { ScheduleGrid, ScheduleHeading } from "@/components/ScheduleGrid"
+import { usePeriodoLetivo } from "@/hooks/usePeriodoLetivo"
 import type { HorarioDTO, ProfessorDTO, ScheduleLesson, TurmaDTO, ViewMode } from "@/types/api"
 import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
@@ -32,6 +33,7 @@ function compareClassesByCourseAndName(a: TurmaDTO, b: TurmaDTO) {
 
 export default function ImpressaoHorarios() {
   const { search, state } = useLocation()
+  const { periodoLetivo } = usePeriodoLetivo()
   const params = new URLSearchParams(search)
   const kind = params.get("tipo") ?? "turma"
   const value = params.get("valor") ?? ""
@@ -166,15 +168,19 @@ export default function ImpressaoHorarios() {
 
     return selectedClasses.map((item) => {
       const classSchedules = schedules.filter((schedule) => schedule.turmaId === item.id)
+      const courseWithYear = item.cursoNome
+        ? `${item.cursoNome} · ${periodoLetivo}`
+        : periodoLetivo
+
       return {
         id: `class-${item.id}`,
         name: item.nome,
-        detail: item.cursoNome ?? "",
+        detail: courseWithYear,
         mode: "class",
         lessons: classSchedules.map(toLesson),
       }
     })
-  }, [classes, kind, schedules, teachers, value])
+  }, [classes, kind, periodoLetivo, schedules, teachers, value])
 
   const title =
     kind === "calendario"
@@ -230,7 +236,9 @@ export default function ImpressaoHorarios() {
             <strong>INSTITUTO FEDERAL DA PARAÍBA</strong>
             <span>
               Campus Monteiro ·{" "}
-              {kind === "calendario" ? "Calendário acadêmico oficial" : "Horário acadêmico"}
+              {kind === "calendario"
+                ? `Calendário acadêmico oficial ${periodoLetivo}`
+                : `Horário acadêmico ${periodoLetivo}`}
             </span>
           </div>
         </div>
