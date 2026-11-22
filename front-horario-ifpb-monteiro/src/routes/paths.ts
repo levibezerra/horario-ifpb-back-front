@@ -21,3 +21,7 @@ export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES]
 export function professorPath(identifier: string) {
   return `${ROUTES.byProfessor}?sel=${encodeURIComponent(identifier)}`
 }
+
+export function ambientePath(identifier: string) {
+  return `${ROUTES.byRoom}?sel=${encodeURIComponent(identifier)}`
+}

@@ -235,7 +235,7 @@
 .auth-visual h1 {
   max-width: 510px;
   margin: 12px 0 18px;
-  font: 800 clamp(35px, 4vw, 58px) / 1.04 "Manrope";
+  font: 800 clamp(35px, 4vw, 40px) / 1.04 "Manrope";
   letter-spacing: -2.4px;
 }
 

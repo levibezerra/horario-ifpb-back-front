@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
+import QRCode from "qrcode"
 import { AdminIcon } from "@/components/Icon"
 import { toast } from "react-toastify"
 import Button from "@/components/Button"
 import InputField from "@/components/InputField"
 import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
+import { ambientePath } from "@/routes/paths"
 import type { AmbienteDTO, CategoriaAmbiente } from "@/types/api"
 import "./ambiente.css"
 
@@ -22,6 +24,23 @@ const ROOM_CATEGORIES_OPTIONS: { id: CategoriaAmbiente; label: string }[] = [
   { id: "ESPORTIVO", label: "Espaço Esportivo" },
 ]
 
+const PUBLIC_BASE_URL = (
+  import.meta.env.VITE_PUBLIC_URL || "http://192.168.18.148:5173"
+).replace(/\/+$/, "")
+
+function buildPublicRoomUrl(room: RoomRecord): string {
+  return `${PUBLIC_BASE_URL}${ambientePath(room.name)}`
+}
+
+function sanitizeFileName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase()
+}
+
 export default function Ambiente() {
   const [records, setRecords] = useState<RoomRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,6 +51,10 @@ export default function Ambiente() {
   const [editing, setEditing] = useState<RoomRecord | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [deleting, setDeleting] = useState<RoomRecord | null>(null)
+
+  const [qrRoom, setQrRoom] = useState<RoomRecord | null>(null)
+  const [qrDataUrl, setQrDataUrl] = useState<string>("")
+  const [qrUrl, setQrUrl] = useState<string>("")
 
   const [form, setForm] = useState({
     name: "",
@@ -94,6 +117,88 @@ export default function Ambiente() {
     }
     setError("")
     setFormOpen(true)
+  }
+
+  async function openQrModal(record: RoomRecord) {
+    try {
+      const targetUrl = buildPublicRoomUrl(record)
+      const dataUrl = await QRCode.toDataURL(targetUrl, {
+        width: 512,
+        margin: 2,
+        color: {
+          dark: "#113822",
+          light: "#ffffff",
+        },
+        errorCorrectionLevel: "M",
+      })
+      setQrRoom(record)
+      setQrUrl(targetUrl)
+      setQrDataUrl(dataUrl)
+    } catch {
+      toast.error("Não foi possível gerar o QR Code deste ambiente.")
+    }
+  }
+
+  function handleDownloadQr() {
+    if (!qrRoom || !qrDataUrl) return
+
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement("canvas")
+      const width = 600
+      const height = 720
+      canvas.width = width
+      canvas.height = height
+
+      const ctx = canvas.getContext("2d")
+      if (!ctx) return
+
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, width, height)
+
+      ctx.strokeStyle = "#d0d7de"
+      ctx.lineWidth = 4
+      ctx.strokeRect(16, 16, width - 32, height - 32)
+
+      ctx.fillStyle = "#113822"
+      ctx.font = "bold 28px sans-serif"
+      ctx.textAlign = "center"
+      ctx.fillText(qrRoom.name, width / 2, 76)
+
+      if (qrRoom.detail) {
+        ctx.fillStyle = "#4b5563"
+        ctx.font = "18px sans-serif"
+        ctx.fillText(qrRoom.detail, width / 2, 108)
+      }
+
+      const qrSize = 440
+      ctx.drawImage(img, (width - qrSize) / 2, 135, qrSize, qrSize)
+
+      ctx.fillStyle = "#1f2937"
+      ctx.font = "600 18px sans-serif"
+      ctx.fillText("Aponte a câmera para ver o horário da sala", width / 2, 625)
+
+      ctx.fillStyle = "#6b7280"
+      ctx.font = "14px sans-serif"
+      ctx.fillText("IFPB · Campus Monteiro", width / 2, 658)
+
+      const link = document.createElement("a")
+      link.download = `qrcode-${sanitizeFileName(qrRoom.name || "ambiente")}.png`
+      link.href = canvas.toDataURL("image/png")
+      link.click()
+      toast.success("QR Code baixado com sucesso!")
+    }
+    img.src = qrDataUrl
+  }
+
+  async function handleCopyLink() {
+    if (!qrUrl) return
+    try {
+      await navigator.clipboard.writeText(qrUrl)
+      toast.success("Link da grade copiado!")
+    } catch {
+      toast.error("Não foi possível copiar o link.")
+    }
   }
 
   async function save(event: FormEvent) {
@@ -215,13 +320,46 @@ export default function Ambiente() {
                     {record.categoria && <small>{record.categoria}</small>}
                   </td>
                   <td>
-                    <button onClick={() => openForm(record)} aria-label={`Editar ${record.name}`}>
+                    <button
+                      type="button"
+                      onClick={() => openQrModal(record)}
+                      aria-label={`Gerar QR Code de ${record.name}`}
+                      title="Gerar QR Code da grade do ambiente"
+                    >
+                      <svg
+                        width="17"
+                        height="17"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect x="3" y="3" width="7" height="7" rx="1" />
+                        <rect x="14" y="3" width="7" height="7" rx="1" />
+                        <rect x="3" y="14" width="7" height="7" rx="1" />
+                        <path d="M14 14h3v3h-3z" />
+                        <path d="M20 14v3h-3" />
+                        <path d="M14 20h3" />
+                        <path d="M20 20h.01" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openForm(record)}
+                      aria-label={`Editar ${record.name}`}
+                      title="Editar ambiente"
+                    >
                       <AdminIcon name="edit" size={17} />
                     </button>
                     <button
+                      type="button"
                       className="danger-action"
                       onClick={() => setDeleting(record)}
                       aria-label={`Excluir ${record.name}`}
+                      title="Excluir ambiente"
                     >
                       <AdminIcon name="trash" size={17} />
                     </button>
@@ -238,6 +376,72 @@ export default function Ambiente() {
           )}
         </div>
       </section>
+
+      {qrRoom && (
+        <div className="admin-modal-layer" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+          <button
+            className="admin-modal-backdrop"
+            onClick={() => setQrRoom(null)}
+            aria-label="Fechar QR Code"
+          />
+          <section className="admin-modal" style={{ maxWidth: "440px", textAlign: "center" }}>
+            <div className="admin-modal-heading" style={{ textAlign: "left" }}>
+              <div>
+                <span>QR CODE DO AMBIENTE</span>
+                <h2 id="qr-modal-title">{qrRoom.name}</h2>
+              </div>
+              <button type="button" onClick={() => setQrRoom(null)} aria-label="Fechar">
+                <AdminIcon name="close" size={19} />
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "0.75rem",
+                padding: "1.25rem",
+                margin: "0.5rem 0 1rem",
+                borderRadius: "12px",
+                border: "1px solid #d0d7de",
+                backgroundColor: "#ffffff",
+              }}
+            >
+              {qrDataUrl && (
+                <img
+                  src={qrDataUrl}
+                  alt={`QR Code da grade de ${qrRoom.name}`}
+                  style={{ width: "240px", height: "240px", display: "block" }}
+                />
+              )}
+              <div style={{ fontSize: "0.875rem", color: "#374151" }}>
+                <strong>{qrRoom.name}</strong>
+                {qrRoom.detail ? ` · ${qrRoom.detail}` : ""}
+              </div>
+              <small
+                style={{
+                  fontSize: "0.75rem",
+                  color: "#6b7280",
+                  wordBreak: "break-all",
+                }}
+              >
+                {qrUrl}
+              </small>
+            </div>
+
+            <div className="admin-modal-actions" style={{ justifyContent: "space-between", gap: "0.5rem" }}>
+              <Button text="Copiar link" onClick={handleCopyLink} />
+              <Button
+                className="admin-primary"
+                type="button"
+                text="Baixar QR Code (PNG)"
+                onClick={handleDownloadQr}
+              />
+            </div>
+          </section>
+        </div>
+      )}
 
       {formOpen && (
         <div className="admin-modal-layer" role="dialog" aria-modal="true">

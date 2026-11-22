@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { FilterSidebar } from "@/components/Sidebar"
 import { MobileSelection, ScheduleGrid, ScheduleHeading } from "@/components/ScheduleGrid"
 import { Icon } from "@/components/Icon"
@@ -24,6 +25,7 @@ const ROOM_CATEGORIES: { id: CategoriaAmbiente; label: string; caption: string }
 
 export default function PorAmbiente() {
   const panel = useFilterPanel()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [rooms, setRooms] = useState<AmbienteDTO[]>([])
   const [classes, setClasses] = useState<TurmaDTO[]>([])
   const [courses, setCourses] = useState<CursoDTO[]>([])
@@ -51,6 +53,27 @@ export default function PorAmbiente() {
     }
     loadData()
   }, [])
+
+  // Sincroniza a seleção inicial com ?sel=<nome ou id> (ex.: vindo da leitura de QR Code)
+  useEffect(() => {
+    const sel = searchParams.get("sel")?.trim()
+    if (!sel || !rooms.length) return
+
+    const normalizedSel = sel.toLocaleLowerCase("pt-BR")
+    const matchedRoom = rooms.find(
+      (r) =>
+        r.nome.toLocaleLowerCase("pt-BR") === normalizedSel ||
+        String(r.id) === sel,
+    )
+
+    if (matchedRoom && matchedRoom.id != null) {
+      if (matchedRoom.categoria && matchedRoom.categoria !== category) {
+        setCategory(matchedRoom.categoria)
+      }
+      setSelectedRoomId(matchedRoom.id)
+      setQuery("")
+    }
+  }, [rooms, searchParams])
 
   const courseInfoByClassId = useMemo(() => {
     const courseById = new Map<number, CursoDTO>()
@@ -86,6 +109,20 @@ export default function PorAmbiente() {
   }, [category, query, rooms])
 
   useEffect(() => {
+    // Evita sobrescrever a sala vinda via ?sel= antes da categoria atualizar
+    const sel = searchParams.get("sel")?.trim()
+    if (sel && rooms.length > 0) {
+      const normalizedSel = sel.toLocaleLowerCase("pt-BR")
+      const matchedFromUrl = rooms.find(
+        (r) =>
+          r.nome.toLocaleLowerCase("pt-BR") === normalizedSel ||
+          String(r.id) === sel,
+      )
+      if (matchedFromUrl && matchedFromUrl.categoria !== category) {
+        return
+      }
+    }
+
     if (roomsInCategory.length > 0) {
       if (!roomsInCategory.some((r) => r.id === selectedRoomId)) {
         setSelectedRoomId(roomsInCategory[0].id!)
@@ -93,9 +130,17 @@ export default function PorAmbiente() {
     } else {
       setSelectedRoomId(null)
     }
-  }, [roomsInCategory, selectedRoomId])
+  }, [roomsInCategory, selectedRoomId, searchParams, rooms, category])
 
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId)
+
+  function handleSelectRoom(id: number) {
+    setSelectedRoomId(id)
+    const roomObj = rooms.find((r) => r.id === id)
+    if (roomObj) {
+      setSearchParams({ sel: roomObj.nome }, { replace: true })
+    }
+  }
 
   const lessons: ScheduleLesson[] = useMemo(() => {
     if (!selectedRoomId) return []
@@ -155,7 +200,7 @@ export default function PorAmbiente() {
         mode="room"
         groups={groups}
         selected={String(selectedRoomId ?? "")}
-        onSelect={(id) => setSelectedRoomId(Number(id))}
+        onSelect={(id) => handleSelectRoom(Number(id))}
         query={query}
         onQueryChange={setQuery}
         open={panel.open}
@@ -169,6 +214,9 @@ export default function PorAmbiente() {
                 onClick={() => {
                   setCategory(item.id)
                   setQuery("")
+                  if (searchParams.has("sel")) {
+                    setSearchParams({}, { replace: true })
+                  }
                 }}
               >
                 {item.label}
