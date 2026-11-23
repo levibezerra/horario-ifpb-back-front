@@ -3,6 +3,7 @@ import { FilterSidebar } from "@/components/Sidebar"
 import { ProfessorCard } from "@/components/ProfessorCard"
 import { MobileSelection, ScheduleGrid, ScheduleHeading } from "@/components/ScheduleGrid"
 import { useFilterPanel } from "@/hooks/useFilterPanel"
+import { useSearchParam } from "@/hooks/useSearchParam"
 import type {
   CursoDTO,
   HorarioDTO,
@@ -14,13 +15,17 @@ import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import "./por-professor.css"
 
+function normalizeText(value: string) {
+  return value.trim().toLocaleLowerCase("pt-BR")
+}
+
 export default function PorProfessor() {
   const panel = useFilterPanel()
+  const [selectedParam, setSelectedParam] = useSearchParam("sel")
   const [teachers, setTeachers] = useState<ProfessorDTO[]>([])
   const [classes, setClasses] = useState<TurmaDTO[]>([])
   const [courses, setCourses] = useState<CursoDTO[]>([])
   const [schedules, setSchedules] = useState<HorarioDTO[]>([])
-  const [selectedProfId, setSelectedProfId] = useState<number | null>(null)
   const [query, setQuery] = useState("")
 
   useEffect(() => {
@@ -36,13 +41,30 @@ export default function PorProfessor() {
         setClasses(resClasses.data)
         setCourses(resCourses.data)
         setSchedules(resSchedules.data.filter((h) => h.status === "PUBLICADO"))
-        if (resTeachers.data.length > 0) setSelectedProfId(resTeachers.data[0].id!)
       } catch (err) {
         console.error("Erro ao carregar consulta por professor", err)
       }
     }
     loadData()
   }, [])
+
+  const selectedTeacher = useMemo(() => {
+    if (!teachers.length) return undefined
+
+    if (selectedParam) {
+      const normalizedParam = normalizeText(selectedParam)
+      const matched = teachers.find(
+        (t) =>
+          String(t.id) === selectedParam ||
+          normalizeText(t.nome) === normalizedParam,
+      )
+      if (matched) return matched
+    }
+
+    return teachers[0]
+  }, [teachers, selectedParam])
+
+  const selectedProfId = selectedTeacher?.id ?? null
 
   const courseInfoByClassId = useMemo(() => {
     const courseById = new Map<number, CursoDTO>()
@@ -64,11 +86,6 @@ export default function PorProfessor() {
     })
     return map
   }, [classes, courses])
-
-  const selectedTeacher = useMemo(
-    () => teachers.find((t) => t.id === selectedProfId),
-    [teachers, selectedProfId],
-  )
 
   const lessons: ScheduleLesson[] = useMemo(() => {
     if (!selectedProfId) return []
@@ -147,7 +164,7 @@ export default function PorProfessor() {
         mode="teacher"
         groups={filteredGroups}
         selected={String(selectedProfId ?? "")}
-        onSelect={(id) => setSelectedProfId(Number(id))}
+        onSelect={(id) => setSelectedParam(id)}
         query={query}
         onQueryChange={setQuery}
         open={panel.open}
