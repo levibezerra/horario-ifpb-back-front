@@ -3,9 +3,11 @@ package com.example.horario_ifpb_monteiro.service;
 import com.example.horario_ifpb_monteiro.entity.Curso;
 import com.example.horario_ifpb_monteiro.entity.Disciplina;
 import com.example.horario_ifpb_monteiro.entity.Turma;
+import com.example.horario_ifpb_monteiro.exceptions.BusinessException;
 import com.example.horario_ifpb_monteiro.exceptions.ResourceNotFoundException;
 import com.example.horario_ifpb_monteiro.repository.CursoRepository;
 import com.example.horario_ifpb_monteiro.repository.DisciplinaRepository;
+import com.example.horario_ifpb_monteiro.repository.HorarioRepository;
 import com.example.horario_ifpb_monteiro.repository.TurmaRepository;
 import com.example.horario_ifpb_monteiro.web.dto.DisciplinaRequestDTO;
 import com.example.horario_ifpb_monteiro.web.dto.DisciplinaResponseDTO;
@@ -22,15 +24,18 @@ public class DisciplinaService {
     private final DisciplinaRepository repository;
     private final CursoRepository cursoRepository;
     private final TurmaRepository turmaRepository;
+    private final HorarioRepository horarioRepository;
 
     public DisciplinaService(
             DisciplinaRepository repository,
             CursoRepository cursoRepository,
-            TurmaRepository turmaRepository
+            TurmaRepository turmaRepository,
+            HorarioRepository horarioRepository
     ) {
         this.repository = repository;
         this.cursoRepository = cursoRepository;
         this.turmaRepository = turmaRepository;
+        this.horarioRepository = horarioRepository;
     }
 
     @Transactional(readOnly = true)
@@ -92,8 +97,17 @@ public class DisciplinaService {
 
     @Transactional
     public void deletar(Long id) {
-        buscarPorId(id);
-        repository.deleteById(id);
+        Disciplina disciplina = buscarPorId(id);
+
+        long totalHorarios = horarioRepository.countByDisciplinaId(id);
+        if (totalHorarios > 0) {
+            throw new BusinessException(
+                    "Não é possível excluir a disciplina \"" + disciplina.getNome() + "\" porque existem "
+                            + totalHorarios + " horário(s) vinculados a ela. Remova os horários antes de excluir."
+            );
+        }
+
+        repository.delete(disciplina);
     }
 
     private Set<Curso> carregarCursos(DisciplinaRequestDTO dto) {
