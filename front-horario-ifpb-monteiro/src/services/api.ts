@@ -1,7 +1,7 @@
 import axios from "axios"
 import { authSession } from "./api-support/authSession"
 import { normalizeApiError } from "./api-support/apiError"
-export { apiErrorMessage, ApiError, normalizeApiError } from "./api-support/apiError"
+export { apiErrorMessage, ApiError, extractFieldErrors, normalizeApiError, } from "./api-support/apiError"
 
 function resolveBaseURL(): string {
   const envUrl = import.meta.env.VITE_API_URL?.trim()
