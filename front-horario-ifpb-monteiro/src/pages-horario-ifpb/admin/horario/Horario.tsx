@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { AdminIcon, Icon } from "@/components/Icon"
 import { ScheduleHeading } from "@/components/ScheduleGrid"
 import { ScheduleFormModal, type ScheduleInitialValues } from "@/components/ScheduleFormModal"
@@ -14,7 +15,7 @@ import type {
   ScheduleLesson,
   TurmaDTO,
 } from "@/types/api"
-import { api } from "@/services/api"
+import { api, apiErrorMessage } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import "./horario.css"
 import { toast } from "react-toastify"
@@ -247,6 +248,7 @@ function inferModality(course?: CursoDTO, courseName = ""): ModalidadeCurso {
 }
 
 export default function Horario() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [schedules, setSchedules] = useState<HorarioDTO[]>([])
   const [courses, setCourses] = useState<CursoDTO[]>([])
   const [classes, setClasses] = useState<TurmaDTO[]>([])
@@ -255,12 +257,26 @@ export default function Horario() {
   const [rooms, setRooms] = useState<AmbienteDTO[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [selectedClassId, setSelectedClassId] = useState<number | null>(null)
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(() => {
+    const paramTurmaId = Number(searchParams.get("turmaId"))
+    return Number.isFinite(paramTurmaId) && paramTurmaId > 0 ? paramTurmaId : null
+  })
   const [selectedLesson, setSelectedLesson] = useState<ScheduleLesson | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<HorarioDTO | null>(null)
   const [initialValues, setInitialValues] = useState<ScheduleInitialValues | null>(null)
   const [publishConfirmation, setPublishConfirmation] = useState(false)
+
+  const handleSelectClass = (classId: number) => {
+    setSelectedClassId(classId)
+    const targetClass = classes.find((c) => Number(c.id) === Number(classId))
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set("turmaId", String(classId))
+    if (targetClass?.cursoId) {
+      nextParams.set("cursoId", String(targetClass.cursoId))
+    }
+    setSearchParams(nextParams, { replace: true })
+  }
 
   const loadAllData = async () => {
     try {
@@ -300,11 +316,33 @@ export default function Horario() {
       setTeachers(resTeachers.data)
       setRooms(resRooms.data)
 
-      if (sortedClasses.length > 0 && selectedClassId === null) {
-        setSelectedClassId(Number(sortedClasses[0].id))
+      const paramTurmaId = Number(searchParams.get("turmaId"))
+      const paramCursoId = Number(searchParams.get("cursoId"))
+
+      if (sortedClasses.length > 0) {
+        const matchedByTurma =
+          Number.isFinite(paramTurmaId) && paramTurmaId > 0
+            ? sortedClasses.find((c) => Number(c.id) === paramTurmaId)
+            : undefined
+
+        const matchedByCurso =
+          !matchedByTurma && Number.isFinite(paramCursoId) && paramCursoId > 0
+            ? sortedClasses.find((c) => Number(c.cursoId) === paramCursoId)
+            : undefined
+
+        if (matchedByTurma) {
+          setSelectedClassId(Number(matchedByTurma.id))
+        } else if (matchedByCurso) {
+          setSelectedClassId(Number(matchedByCurso.id))
+        } else if (
+          selectedClassId === null ||
+          !sortedClasses.some((c) => Number(c.id) === Number(selectedClassId))
+        ) {
+          setSelectedClassId(Number(sortedClasses[0].id))
+        }
       }
-    } catch (err: any) {
-      toast.error("Erro ao carregar os dados de horários.")
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -313,6 +351,18 @@ export default function Horario() {
   useEffect(() => {
     loadAllData()
   }, [])
+
+  useEffect(() => {
+    const paramTurmaId = Number(searchParams.get("turmaId"))
+    if (
+      Number.isFinite(paramTurmaId) &&
+      paramTurmaId > 0 &&
+      classes.some((c) => Number(c.id) === paramTurmaId) &&
+      Number(selectedClassId) !== paramTurmaId
+    ) {
+      setSelectedClassId(paramTurmaId)
+    }
+  }, [searchParams, classes, selectedClassId])
 
   const draftSchedules = useMemo(
     () => schedules.filter((item) => item.status === "RASCUNHO"),
@@ -326,8 +376,8 @@ export default function Horario() {
       await api.post(API_ENDPOINTS.publicarHorarios, { horarioIds: draftIds })
       toast.success("Horários publicados com sucesso!")
       await loadAllData()
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Erro ao publicar horários.")
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err))
     } finally {
       setPublishConfirmation(false)
     }
@@ -346,13 +396,13 @@ export default function Horario() {
   function handlePrevClass() {
     if (classes.length === 0) return
     const prevIndex = currentClassIndex > 0 ? currentClassIndex - 1 : classes.length - 1
-    setSelectedClassId(Number(classes[prevIndex].id))
+    handleSelectClass(Number(classes[prevIndex].id))
   }
 
   function handleNextClass() {
     if (classes.length === 0) return
     const nextIndex = currentClassIndex >= 0 && currentClassIndex < classes.length - 1 ? currentClassIndex + 1 : 0
-    setSelectedClassId(Number(classes[nextIndex].id))
+    handleSelectClass(Number(classes[nextIndex].id))
   }
 
   const selectedCourse = useMemo(() => {
@@ -437,8 +487,8 @@ export default function Horario() {
       await api.delete(`${API_ENDPOINTS.horarios}/${lessonId}`)
       toast.success("Horário excluído com sucesso!")
       await loadAllData()
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Erro ao excluir horário.")
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err))
     }
   }
 
@@ -494,7 +544,7 @@ export default function Horario() {
             <span>Selecione a turma</span>
             <select
               value={selectedClassId ?? ""}
-              onChange={(e) => setSelectedClassId(Number(e.target.value))}
+              onChange={(e) => handleSelectClass(Number(e.target.value))}
             >
               {classesByCourse.map(([courseName, courseClasses]) => (
                 <optgroup key={courseName} label={courseName}>
@@ -516,7 +566,6 @@ export default function Horario() {
               selected={selectedClass.nome}
               course={selectedClass.cursoNome || selectedCourse?.nome || ""}
               lessons={selectedLessons}
-              
             />
 
             <div className="schedule-scroll">
