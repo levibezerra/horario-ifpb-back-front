@@ -16,4 +16,6 @@ public interface DisciplinaRepository extends JpaRepository<Disciplina, Long> {
     @Override
     @EntityGraph(attributePaths = {"curso", "cursos", "turmas"})
     Optional<Disciplina> findById(Long id);
+
+    long countByTurmasId(Long turmaId);
 }
