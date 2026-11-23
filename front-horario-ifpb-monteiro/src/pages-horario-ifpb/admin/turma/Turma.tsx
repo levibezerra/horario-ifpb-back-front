@@ -326,13 +326,24 @@ export default function Turma() {
         open={Boolean(deleting)}
         title="Excluir turma?"
         itemName={deleting?.name ?? ""}
-        dependencyActionLabel="Ver horários da turma"
+        dependencyActionLabel={(err) =>
+          err.toLowerCase().includes("disciplina")
+            ? "Ver disciplinas da turma"
+            : "Ver horários da turma"
+        }
         onDependencyAction={
           deleting
-            ? () =>
+            ? (err) => {
+                if (err.toLowerCase().includes("disciplina")) {
+                  navigate(
+                    `${ROUTES.adminSubjects}?cursoId=${deleting.cursoId}&turmaId=${deleting.id}`,
+                  )
+                  return
+                }
                 navigate(
                   `${ROUTES.adminSchedules}?cursoId=${deleting.cursoId}&turmaId=${deleting.id}`,
                 )
+              }
             : undefined
         }
         onConfirm={handleConfirmDelete}
