@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { AdminIcon } from "@/components/Icon"
 import Button from "@/components/Button"
-import { api } from "@/services/api"
+import { api, apiErrorMessage, extractFieldErrors } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import type {
   AmbienteDTO,
@@ -273,7 +273,12 @@ export function ScheduleFormModal({
 
   if (!open) return null
 
+  function clearError() {
+    if (error) setError("")
+  }
+
   function handleCursoChange(cursoId: number) {
+    clearError()
     const courseObj = courses.find((c) => Number(c.id) === Number(cursoId))
     const nextTimes =
       inferModality(courseObj) === "SUPERIOR" ? HORARIOS_SUPERIOR : HORARIOS_INTEGRADO
@@ -309,6 +314,7 @@ export function ScheduleFormModal({
   }
 
   function handleTurmaChange(turmaId: number) {
+    clearError()
     const turmaSubjects = filterSubjectsForCourseAndClass(
       subjects,
       form.cursoId,
@@ -325,6 +331,7 @@ export function ScheduleFormModal({
   }
 
   function handleBlocoChange(bloco: string) {
+    clearError()
     const filteredRooms = rooms.filter(
       (r) => (r.localizacao?.trim() || "Sem Bloco Definido") === bloco
     )
@@ -336,6 +343,7 @@ export function ScheduleFormModal({
   }
 
   function handleToggleTime(time: string) {
+    clearError()
     setForm((prev) => {
       if (prev.horarioInicio === time) {
         return {
@@ -377,6 +385,8 @@ export function ScheduleFormModal({
 
   async function save(event: FormEvent) {
     event.preventDefault()
+    clearError()
+
     if (!form.cursoId || form.cursoId === 0) {
       setError("Selecione um curso válido.")
       return
@@ -394,7 +404,7 @@ export function ScheduleFormModal({
       return
     }
     if (!form.disciplinaId || form.disciplinaId === 0 || !form.professorId || form.professorId === 0) {
-      setError("Selecione todas as entidades obrigatórias.")
+      setError("Selecione a disciplina e o professor obrigatórios.")
       return
     }
     if (!form.horarioInicio || !form.horarioFim || form.horarioFim <= form.horarioInicio) {
@@ -424,14 +434,10 @@ export function ScheduleFormModal({
       }
       onClose()
       await onSaved()
-    } catch (err: any) {
-      const data = err.response?.data
-      const msg =
-        (typeof data === "string" && data) ||
-        data?.message ||
-        data?.detail ||
-        (Array.isArray(data?.errors) && data.errors[0]?.defaultMessage) ||
-        "Erro ao salvar horário."
+    } catch (err: unknown) {
+      const fieldErrors = extractFieldErrors(err)
+      const firstFieldError = Object.values(fieldErrors)[0]
+      const msg = firstFieldError || apiErrorMessage(err)
       setError(msg)
       toast.error(msg)
     } finally {
@@ -496,7 +502,10 @@ export function ScheduleFormModal({
             <span>Disciplina *</span>
             <select
               value={form.disciplinaId}
-              onChange={(e) => setForm((c) => ({ ...c, disciplinaId: Number(e.target.value) }))}
+              onChange={(e) => {
+                clearError()
+                setForm((c) => ({ ...c, disciplinaId: Number(e.target.value) }))
+              }}
               disabled={!form.cursoId || availableSubjects.length === 0}
             >
               {availableSubjects.length === 0 ? (
@@ -513,7 +522,10 @@ export function ScheduleFormModal({
             <span>Professor *</span>
             <select
               value={form.professorId}
-              onChange={(e) => setForm((c) => ({ ...c, professorId: Number(e.target.value) }))}
+              onChange={(e) => {
+                clearError()
+                setForm((c) => ({ ...c, professorId: Number(e.target.value) }))
+              }}
             >
               {availableTeachers.map((item) => (
                 <option key={item.id} value={item.id}>{item.nome}</option>
@@ -538,7 +550,10 @@ export function ScheduleFormModal({
             <span>Ambiente *</span>
             <select
               value={form.ambienteId}
-              onChange={(e) => setForm((c) => ({ ...c, ambienteId: Number(e.target.value) }))}
+              onChange={(e) => {
+                clearError()
+                setForm((c) => ({ ...c, ambienteId: Number(e.target.value) }))
+              }}
               disabled={!form.bloco || availableRooms.length === 0}
             >
               {availableRooms.length === 0 ? (
@@ -555,7 +570,13 @@ export function ScheduleFormModal({
 
           <label className="admin-form-field">
             <span>Dia da semana *</span>
-            <select value={form.diaSemana} onChange={(e) => setForm((c) => ({ ...c, diaSemana: e.target.value as DiaSemana }))}>
+            <select
+              value={form.diaSemana}
+              onChange={(e) => {
+                clearError()
+                setForm((c) => ({ ...c, diaSemana: e.target.value as DiaSemana }))
+              }}
+            >
               {DIAS_SEMANA.map((day) => (
                 <option key={day} value={day}>{day}</option>
               ))}
@@ -651,7 +672,7 @@ export function ScheduleFormModal({
           </div>
         </div>
 
-        {error && <div className="admin-form-error">{error}</div>}
+        {error && <div className="admin-form-error" role="alert">{error}</div>}
         <div className="admin-modal-actions">
           <Button text="Cancelar" onClick={onClose} />
           <Button className="admin-primary" type="submit" text={saving ? "Salvando..." : "Salvar horário"} />
