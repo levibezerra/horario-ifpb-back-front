@@ -3,6 +3,7 @@ package com.example.horario_ifpb_monteiro.service;
 import com.example.horario_ifpb_monteiro.entity.Turma;
 import com.example.horario_ifpb_monteiro.exceptions.BusinessException;
 import com.example.horario_ifpb_monteiro.exceptions.ResourceNotFoundException;
+import com.example.horario_ifpb_monteiro.repository.DisciplinaRepository;
 import com.example.horario_ifpb_monteiro.repository.HorarioRepository;
 import com.example.horario_ifpb_monteiro.repository.TurmaRepository;
 import org.springframework.stereotype.Service;
@@ -16,15 +17,18 @@ public class TurmaService {
     private final TurmaRepository repository;
     private final CursoService cursoService;
     private final HorarioRepository horarioRepository;
+    private final DisciplinaRepository disciplinaRepository;
 
     public TurmaService(
             TurmaRepository repository,
             CursoService cursoService,
-            HorarioRepository horarioRepository
+            HorarioRepository horarioRepository,
+            DisciplinaRepository disciplinaRepository
     ) {
         this.repository = repository;
         this.cursoService = cursoService;
         this.horarioRepository = horarioRepository;
+        this.disciplinaRepository = disciplinaRepository;
     }
 
     @Transactional(readOnly = true)
@@ -64,6 +68,14 @@ public class TurmaService {
             throw new BusinessException(
                     "Não é possível excluir a turma \"" + turma.getNome() + "\" porque existem "
                             + totalHorarios + " horário(s) vinculados a ela. Remova os horários antes de excluir."
+            );
+        }
+
+        long totalDisciplinas = disciplinaRepository.countByTurmasId(id);
+        if (totalDisciplinas > 0) {
+            throw new BusinessException(
+                    "Não é possível excluir a turma \"" + turma.getNome() + "\" porque existem "
+                            + totalDisciplinas + " disciplina(s) vinculadas a ela. Desvincule as disciplinas antes de excluir."
             );
         }
 
