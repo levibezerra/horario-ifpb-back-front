@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { AdminIcon } from "@/components/Icon"
 import { toast } from "react-toastify"
 import Button from "@/components/Button"
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal"
 import InputField from "@/components/InputField"
-import { api } from "@/services/api"
+import { ROUTES } from "@/routes/paths"
+import { api, apiErrorMessage, extractFieldErrors } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import type { CursoDTO, DisciplinaDTO, TurmaDTO } from "@/types/api"
 import "./disciplina.css"
@@ -23,6 +26,9 @@ function compareNaturalPtBr(a: string, b: string) {
 }
 
 export default function Disciplina() {
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const [records, setRecords] = useState<SubjectRecord[]>([])
   const [availableCourses, setAvailableCourses] = useState<CursoDTO[]>([])
   const [availableClasses, setAvailableClasses] = useState<TurmaDTO[]>([])
@@ -30,7 +36,10 @@ export default function Disciplina() {
   const [submitting, setSubmitting] = useState(false)
 
   const [query, setQuery] = useState("")
-  const [selectedClassId, setSelectedClassId] = useState<number | "ALL">("ALL")
+  const [selectedClassId, setSelectedClassId] = useState<number | "ALL">(() => {
+    const paramTurmaId = Number(searchParams.get("turmaId"))
+    return Number.isFinite(paramTurmaId) && paramTurmaId > 0 ? paramTurmaId : "ALL"
+  })
   const [editing, setEditing] = useState<SubjectRecord | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [deleting, setDeleting] = useState<SubjectRecord | null>(null)
@@ -42,6 +51,23 @@ export default function Disciplina() {
   })
   const [pendingClassId, setPendingClassId] = useState<number>(0)
   const [error, setError] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const handleSelectClassFilter = (value: number | "ALL") => {
+    setSelectedClassId(value)
+    const nextParams = new URLSearchParams(searchParams)
+    if (value === "ALL") {
+      nextParams.delete("turmaId")
+      nextParams.delete("cursoId")
+    } else {
+      nextParams.set("turmaId", String(value))
+      const cls = availableClasses.find((t) => Number(t.id) === Number(value))
+      if (cls?.cursoId) {
+        nextParams.set("cursoId", String(cls.cursoId))
+      }
+    }
+    setSearchParams(nextParams, { replace: true })
+  }
 
   const loadData = async () => {
     try {
@@ -61,6 +87,15 @@ export default function Disciplina() {
 
       setAvailableCourses(loadedCourses)
       setAvailableClasses(loadedClasses)
+
+      const paramTurmaId = Number(searchParams.get("turmaId"))
+      if (
+        Number.isFinite(paramTurmaId) &&
+        paramTurmaId > 0 &&
+        loadedClasses.some((c) => Number(c.id) === paramTurmaId)
+      ) {
+        setSelectedClassId(paramTurmaId)
+      }
 
       setRecords(
         res.data.map((d: any) => {
@@ -103,8 +138,8 @@ export default function Disciplina() {
           }
         }),
       )
-    } catch {
-      toast.error("Erro ao carregar os dados de disciplinas.")
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -113,6 +148,18 @@ export default function Disciplina() {
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    const paramTurmaId = Number(searchParams.get("turmaId"))
+    if (
+      Number.isFinite(paramTurmaId) &&
+      paramTurmaId > 0 &&
+      availableClasses.some((c) => Number(c.id) === paramTurmaId) &&
+      selectedClassId !== paramTurmaId
+    ) {
+      setSelectedClassId(paramTurmaId)
+    }
+  }, [searchParams, availableClasses, selectedClassId])
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.toLocaleLowerCase("pt-BR")
@@ -177,18 +224,25 @@ export default function Disciplina() {
         turmaIds: record.turmaIds ? [...record.turmaIds] : [],
       })
     } else {
+      const preselectedClass =
+        selectedClassId !== "ALL"
+          ? availableClasses.find((t) => Number(t.id) === Number(selectedClassId))
+          : undefined
+
       setForm({
         name: "",
-        cursoIds: [],
-        turmaIds: [],
+        cursoIds: preselectedClass?.cursoId ? [Number(preselectedClass.cursoId)] : [],
+        turmaIds: preselectedClass?.id ? [Number(preselectedClass.id)] : [],
       })
     }
     setPendingClassId(0)
     setError("")
+    setFieldErrors({})
     setFormOpen(true)
   }
 
   function handleToggleCurso(cursoId: number) {
+    if (error) setError("")
     setForm((prev) => {
       const exists = prev.cursoIds.includes(cursoId)
       const nextCursoIds = exists
@@ -212,6 +266,7 @@ export default function Disciplina() {
 
   function handleSelectAndAddTurma(turmaId: number) {
     if (!turmaId) return
+    if (error) setError("")
     setForm((prev) => {
       if (prev.turmaIds.includes(turmaId)) return prev
       return {
@@ -231,7 +286,11 @@ export default function Disciplina() {
 
   async function save(event: FormEvent) {
     event.preventDefault()
+    setError("")
+    setFieldErrors({})
+
     if (!form.name.trim()) {
+      setFieldErrors({ nome: "Informe o nome da disciplina antes de salvar." })
       setError("Informe o nome da disciplina antes de salvar.")
       return
     }
@@ -269,8 +328,10 @@ export default function Disciplina() {
       )
       setFormOpen(false)
       loadData()
-    } catch (err: any) {
-      const msg = err.response?.data?.message || "Erro ao salvar no servidor."
+    } catch (err: unknown) {
+      const fields = extractFieldErrors(err)
+      setFieldErrors(fields)
+      const msg = Object.values(fields)[0] || apiErrorMessage(err)
       setError(msg)
       toast.error(msg)
     } finally {
@@ -278,16 +339,11 @@ export default function Disciplina() {
     }
   }
 
-  async function confirmDelete() {
+  async function handleConfirmDelete() {
     if (!deleting) return
-    try {
-      await api.delete(`${API_ENDPOINTS.disciplinas}/${deleting.id}`)
-      toast.success("Registro excluído com sucesso!")
-      setDeleting(null)
-      loadData()
-    } catch {
-      toast.error("Erro ao excluir registro.")
-    }
+    await api.delete(`${API_ENDPOINTS.disciplinas}/${deleting.id}`)
+    toast.success(`Disciplina "${deleting.name}" excluída com sucesso!`)
+    await loadData()
   }
 
   return (
@@ -297,7 +353,7 @@ export default function Disciplina() {
           <span>COMPONENTES CURRICULARES</span>
           <h1>Gerenciar disciplinas</h1>
           <p>
-            {records.length} {records.length === 1 ? "disciplina" : "disciplinas"} cadastrados.
+            {records.length} {records.length === 1 ? "disciplina" : "disciplinas"} cadastradas.
           </p>
         </div>
 
@@ -325,7 +381,7 @@ export default function Disciplina() {
               value={selectedClassId}
               onChange={(event) => {
                 const val = event.target.value
-                setSelectedClassId(val === "ALL" ? "ALL" : Number(val))
+                handleSelectClassFilter(val === "ALL" ? "ALL" : Number(val))
               }}
             >
               <option value="ALL">Todas as disciplinas</option>
@@ -415,10 +471,15 @@ export default function Disciplina() {
 
             <InputField
               className="admin-form-field"
-              label="Nome da disciplina *"
+              label="Nome da disciplina"
               name="name"
               value={form.name}
-              onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
+              onChange={(e) => {
+                setForm((c) => ({ ...c, name: e.target.value }))
+                if (error) setError("")
+                if (fieldErrors.nome) setFieldErrors((prev) => ({ ...prev, nome: "" }))
+              }}
+              error={fieldErrors.nome}
               placeholder="Nome da disciplina"
               required
             />
@@ -549,7 +610,7 @@ export default function Disciplina() {
               )}
             </div>
 
-            {error && <div className="admin-form-error">{error}</div>}
+            {error && <div className="admin-form-error" role="alert">{error}</div>}
             <div className="admin-modal-actions">
               <Button text="Cancelar" onClick={() => setFormOpen(false)} />
               <Button
@@ -562,30 +623,31 @@ export default function Disciplina() {
         </div>
       )}
 
-      {deleting && (
-        <div className="admin-modal-layer" role="alertdialog" aria-modal="true">
-          <button
-            className="admin-modal-backdrop"
-            onClick={() => setDeleting(null)}
-            aria-label="Cancelar exclusão"
-          />
-          <section className="admin-confirm">
-            <span>
-              <AdminIcon name="warning" size={24} />
-            </span>
-            <h2>Excluir disciplina?</h2>
-            <p>
-              O registro <strong>{deleting.name}</strong> será removido permanentemente.
-            </p>
-            <div>
-              <button onClick={() => setDeleting(null)}>Cancelar</button>
-              <button className="confirm-delete" onClick={confirmDelete}>
-                Excluir registro
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
+      <ConfirmDeleteModal
+        open={Boolean(deleting)}
+        title="Excluir disciplina?"
+        itemName={deleting?.name ?? ""}
+        dependencyActionLabel="Ver horários"
+        onDependencyAction={
+          deleting
+            ? () => {
+                const firstTurmaId = deleting.turmaIds?.[0]
+                const firstCursoId = deleting.cursoIds?.[0] ?? deleting.cursoId
+                const params = new URLSearchParams()
+                if (firstCursoId) params.set("cursoId", String(firstCursoId))
+                if (firstTurmaId) params.set("turmaId", String(firstTurmaId))
+                const queryStr = params.toString()
+                navigate(
+                  queryStr
+                    ? `${ROUTES.adminSchedules}?${queryStr}`
+                    : ROUTES.adminSchedules,
+                )
+              }
+            : undefined
+        }
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleting(null)}
+      />
     </div>
   )
 }
