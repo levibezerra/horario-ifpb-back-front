@@ -8,8 +8,8 @@ type ConfirmDeleteModalProps = {
   itemName: string
   description?: ReactNode
   confirmLabel?: string
-  dependencyActionLabel?: string
-  onDependencyAction?: () => void
+  dependencyActionLabel?: string | ((error: string) => string | undefined)
+  onDependencyAction?: (error: string) => void
   onConfirm: () => Promise<void>
   onClose: () => void
 }
@@ -45,6 +45,10 @@ export function ConfirmDeleteModal({
 
   const hasError = Boolean(error)
   const isDeleteDisabled = submitting || hasError
+  const resolvedDependencyLabel =
+    typeof dependencyActionLabel === "function"
+      ? dependencyActionLabel(error)
+      : dependencyActionLabel
 
   async function handleConfirm() {
     if (isDeleteDisabled) return
@@ -101,16 +105,17 @@ export function ConfirmDeleteModal({
             {hasError ? "Entendi" : "Cancelar"}
           </button>
 
-          {hasError && onDependencyAction && dependencyActionLabel && (
+          {hasError && onDependencyAction && resolvedDependencyLabel && (
             <button
               type="button"
               style={FOREST_BUTTON_STYLE}
               onClick={() => {
+                const currentError = error
                 onClose()
-                onDependencyAction()
+                onDependencyAction(currentError)
               }}
             >
-              {dependencyActionLabel}
+              {resolvedDependencyLabel}
             </button>
           )}
 
