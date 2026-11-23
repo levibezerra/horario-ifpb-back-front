@@ -16,13 +16,18 @@ export default function InputField({
   ...props
 }: InputFieldProps) {
   return (
-    <label className={`textfield ${className}`.trim()}>
+    <label className={`textfield ${error ? "has-error" : ""} ${className}`.trim()}>
       <span>
         {label}
         {required ? " *" : ""}
       </span>
-      <input {...props} name={name} required={required} />
-      {error && <small>{error}</small>}
+      <input
+        {...props}
+        name={name}
+        required={required}
+        aria-invalid={Boolean(error)}
+      />
+      {error && <small role="alert">{error}</small>}
     </label>
   )
 }
