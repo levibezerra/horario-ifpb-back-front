@@ -21,6 +21,11 @@ public interface HorarioRepository extends JpaRepository<Horario, Long> {
     List<Horario> findByAmbienteId(Long ambienteId);
     List<Horario> findByStatus(StatusHorario statusHorario);
 
+    long countByTurmaId(Long turmaId);
+    long countByProfessorId(Long professorId);
+    long countByAmbienteId(Long ambienteId);
+    long countByDisciplinaId(Long disciplinaId);
+
     @Query("SELECT MAX(h.dataAtualizacao) FROM Horario h WHERE h.status = 'PUBLICADO'")
     Optional<LocalDateTime> findUltimaDataAtualizacaoPublicada();
 
