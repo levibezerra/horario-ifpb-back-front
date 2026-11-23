@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useNavigate } from "react-router-dom"
 import { AdminIcon } from "@/components/Icon"
 import { toast } from "react-toastify"
 import Button from "@/components/Button"
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal"
 import InputField from "@/components/InputField"
-import { api } from "@/services/api"
+import { ROUTES } from "@/routes/paths"
+import { api, apiErrorMessage, extractFieldErrors } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import type { CursoDTO, TurmaDTO } from "@/types/api"
 import "./turma.css"
@@ -16,6 +19,7 @@ type ClassRecord = {
 }
 
 export default function Turma() {
+  const navigate = useNavigate()
   const [records, setRecords] = useState<ClassRecord[]>([])
   const [availableCourses, setAvailableCourses] = useState<CursoDTO[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,6 +36,7 @@ export default function Turma() {
     cursoId: 0,
   })
   const [error, setError] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const loadData = async () => {
     try {
@@ -52,8 +57,8 @@ export default function Turma() {
           cursoId: t.cursoId,
         })),
       )
-    } catch {
-      toast.error("Erro ao carregar os dados de turmas.")
+    } catch (err) {
+      toast.error(apiErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -99,12 +104,17 @@ export default function Turma() {
       })
     }
     setError("")
+    setFieldErrors({})
     setFormOpen(true)
   }
 
   async function save(event: FormEvent) {
     event.preventDefault()
+    setError("")
+    setFieldErrors({})
+
     if (!form.name.trim()) {
+      setFieldErrors({ nome: "Informe o nome da turma antes de salvar." })
       setError("Informe o nome antes de salvar.")
       return
     }
@@ -126,12 +136,14 @@ export default function Turma() {
       }
 
       toast.success(
-        editing ? "Turma atualizado(a) com sucesso!" : "Turma cadastrado(a) com sucesso!",
+        editing ? "Turma atualizada com sucesso!" : "Turma cadastrada com sucesso!",
       )
       setFormOpen(false)
       loadData()
-    } catch (err: any) {
-      const msg = err.response?.data?.message || "Erro ao salvar no servidor."
+    } catch (err: unknown) {
+      const fields = extractFieldErrors(err)
+      setFieldErrors(fields)
+      const msg = Object.values(fields)[0] || apiErrorMessage(err)
       setError(msg)
       toast.error(msg)
     } finally {
@@ -139,16 +151,11 @@ export default function Turma() {
     }
   }
 
-  async function confirmDelete() {
+  async function handleConfirmDelete() {
     if (!deleting) return
-    try {
-      await api.delete(`${API_ENDPOINTS.turmas}/${deleting.id}`)
-      toast.success("Registro excluído com sucesso!")
-      setDeleting(null)
-      loadData()
-    } catch {
-      toast.error("Erro ao excluir registro.")
-    }
+    await api.delete(`${API_ENDPOINTS.turmas}/${deleting.id}`)
+    toast.success(`Turma "${deleting.name}" excluída com sucesso!`)
+    await loadData()
   }
 
   return (
@@ -158,7 +165,7 @@ export default function Turma() {
           <span>ORGANIZAÇÃO ACADÊMICA</span>
           <h1>Gerenciar turmas</h1>
           <p>
-            {records.length} {records.length === 1 ? "turma" : "turmas"} cadastrados.
+            {records.length} {records.length === 1 ? "turma" : "turmas"} cadastradas.
           </p>
         </div>
 
@@ -271,7 +278,12 @@ export default function Turma() {
               label="Nome da turma"
               name="name"
               value={form.name}
-              onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
+              onChange={(e) => {
+                setForm((c) => ({ ...c, name: e.target.value }))
+                if (error) setError("")
+                if (fieldErrors.nome) setFieldErrors((prev) => ({ ...prev, nome: "" }))
+              }}
+              error={fieldErrors.nome}
               placeholder="Nome da turma"
               required
             />
@@ -280,7 +292,10 @@ export default function Turma() {
               <span>Curso vinculado *</span>
               <select
                 value={form.cursoId}
-                onChange={(e) => setForm((c) => ({ ...c, cursoId: Number(e.target.value) }))}
+                onChange={(e) => {
+                  setForm((c) => ({ ...c, cursoId: Number(e.target.value) }))
+                  if (error) setError("")
+                }}
               >
                 {availableCourses.length === 0 ? (
                   <option value={0}>Nenhum curso cadastrado</option>
@@ -294,7 +309,7 @@ export default function Turma() {
               </select>
             </label>
 
-            {error && <div className="admin-form-error">{error}</div>}
+            {error && <div className="admin-form-error" role="alert">{error}</div>}
             <div className="admin-modal-actions">
               <Button text="Cancelar" onClick={() => setFormOpen(false)} />
               <Button
@@ -307,30 +322,22 @@ export default function Turma() {
         </div>
       )}
 
-      {deleting && (
-        <div className="admin-modal-layer" role="alertdialog" aria-modal="true">
-          <button
-            className="admin-modal-backdrop"
-            onClick={() => setDeleting(null)}
-            aria-label="Cancelar exclusão"
-          />
-          <section className="admin-confirm">
-            <span>
-              <AdminIcon name="warning" size={24} />
-            </span>
-            <h2>Excluir turma?</h2>
-            <p>
-              O registro <strong>{deleting.name}</strong> será removido permanentemente.
-            </p>
-            <div>
-              <button onClick={() => setDeleting(null)}>Cancelar</button>
-              <button className="confirm-delete" onClick={confirmDelete}>
-                Excluir registro
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
+      <ConfirmDeleteModal
+        open={Boolean(deleting)}
+        title="Excluir turma?"
+        itemName={deleting?.name ?? ""}
+        dependencyActionLabel="Ver horários da turma"
+        onDependencyAction={
+          deleting
+            ? () =>
+                navigate(
+                  `${ROUTES.adminSchedules}?cursoId=${deleting.cursoId}&turmaId=${deleting.id}`,
+                )
+            : undefined
+        }
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleting(null)}
+      />
     </div>
   )
 }
