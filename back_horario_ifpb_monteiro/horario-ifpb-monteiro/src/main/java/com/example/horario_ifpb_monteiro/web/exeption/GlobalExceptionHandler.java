@@ -145,8 +145,11 @@ public class GlobalExceptionHandler {
         }
 
         String normalized = rawMessage.toLowerCase();
-        if (normalized.contains("foreign key") || normalized.contains("still referenced")) {
-            return "Este registro não pode ser excluído ou alterado porque está vinculado a horários ou outros cadastros.";
+        if (normalized.contains("foreign key")
+                || normalized.contains("chave estrangeira")
+                || normalized.contains("still referenced")
+                || normalized.contains("ainda é referenciada")) {
+            return "Este registro não pode ser excluído ou alterado porque está vinculado a horários, disciplinas ou outros cadastros.";
         }
         if (normalized.contains("email")) {
             return "Já existe um cadastro utilizando este e-mail.";
@@ -154,7 +157,9 @@ public class GlobalExceptionHandler {
         if (normalized.contains("codigo")) {
             return "Já existe um curso cadastrado com esta sigla/código.";
         }
-        if (normalized.contains("unique") || normalized.contains("duplicate key")) {
+        if (normalized.contains("unique")
+                || normalized.contains("duplicate key")
+                || normalized.contains("duplicar valor")) {
             return "Já existe um registro cadastrado com essas mesmas informações.";
         }
 
