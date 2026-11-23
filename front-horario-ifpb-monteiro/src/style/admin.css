@@ -578,7 +578,7 @@
 .admin-topbar > div:first-of-type span {
   margin-bottom: 3px;
   color: var(--leaf);
-  font: 700 7px "Manrope";
+  font: 700 10px "Manrope";
   letter-spacing: 1.2px;
 }
 

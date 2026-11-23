@@ -1,4 +1,6 @@
 import { AdminIcon } from "@/components/Icon"
+import { useLocation } from "react-router-dom"
+import { ROUTES } from "@/routes/paths"
 
 type AdminTopbarProps = {
   title: string
@@ -12,11 +14,22 @@ export function AdminTopbar({
   title,
   adminName,
   onOpenMenu,
-  onSignOut,
   onEditProfile,
 }: AdminTopbarProps) {
+  const { pathname } = useLocation()
+
+  const isAcademicCalendarsRoute =
+    pathname.startsWith(ROUTES.adminAcademicSchedules) ||
+    pathname.includes("calendario")
+
+  const displayTitle = isAcademicCalendarsRoute ? "Calendários Acadêmicos" : title
+
   return (
-    <header className={title === "Visão geral" ? "admin-topbar overview-topbar" : "admin-topbar"}>
+    <header
+      className={
+        displayTitle === "Visão geral" ? "admin-topbar overview-topbar" : "admin-topbar"
+      }
+    >
       <button
         className="admin-mobile-menu"
         onClick={onOpenMenu}
@@ -26,7 +39,7 @@ export function AdminTopbar({
       </button>
       <div>
         <span>ÁREA ADMINISTRATIVA</span>
-        {title !== "Visão geral" && <strong>{title}</strong>}
+        {displayTitle !== "Visão geral" && <strong>{displayTitle}</strong>}
       </div>
       <div className="admin-account">
         <span>{adminName.slice(0, 2).toUpperCase()}</span>
