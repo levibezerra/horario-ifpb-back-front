@@ -11,3 +11,20 @@
   justify-content: center;
   flex-shrink: 0;
 }
+
+.ambiente-management .admin-table th:last-child {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ambiente-management .admin-table td:last-child {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ambiente-management .admin-table-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}

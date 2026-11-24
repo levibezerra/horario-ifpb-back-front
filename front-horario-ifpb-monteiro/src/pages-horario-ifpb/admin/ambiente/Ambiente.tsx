@@ -28,6 +28,8 @@ const PUBLIC_BASE_URL = (
   import.meta.env.VITE_PUBLIC_URL || "http://192.168.18.148:5173"
 ).replace(/\/+$/, "")
 
+const NEW_BLOCK_OPTION = "__NEW_BLOCK__"
+
 function buildPublicRoomUrl(room: RoomRecord): string {
   return `${PUBLIC_BASE_URL}${ambientePath(room.name)}`
 }
@@ -41,6 +43,10 @@ function sanitizeFileName(name: string): string {
     .toLowerCase()
 }
 
+function normalizeBlockValue(value: string): string {
+  return value.trim().replace(/\s+/g, " ")
+}
+
 export default function Ambiente() {
   const [records, setRecords] = useState<RoomRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,6 +54,7 @@ export default function Ambiente() {
 
   const [query, setQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<CategoriaAmbiente | "ALL">("ALL")
+  const [selectedBlock, setSelectedBlock] = useState<string>("ALL")
   const [editing, setEditing] = useState<RoomRecord | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [deleting, setDeleting] = useState<RoomRecord | null>(null)
@@ -61,6 +68,7 @@ export default function Ambiente() {
     categoria: "SALA" as CategoriaAmbiente,
     detail: "",
   })
+  const [isCreatingNewBlock, setIsCreatingNewBlock] = useState(false)
   const [error, setError] = useState("")
 
   const loadData = async () => {
@@ -86,34 +94,82 @@ export default function Ambiente() {
     loadData()
   }, [])
 
+  // Extrai automaticamente os blocos/localizações únicos cadastrados nos ambientes
+  const availableBlocks = useMemo(() => {
+    const uniqueMap = new Map<string, string>()
+
+    records.forEach((record) => {
+      const cleaned = normalizeBlockValue(record.detail)
+      if (!cleaned) return
+      const key = cleaned.toLocaleLowerCase("pt-BR")
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, cleaned)
+      }
+    })
+
+    return Array.from(uniqueMap.values()).sort((a, b) =>
+      a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" }),
+    )
+  }, [records])
+
+  // Garante que o filtro de bloco volte para "ALL" caso o bloco selecionado deixe de existir
+  useEffect(() => {
+    if (
+      selectedBlock !== "ALL" &&
+      !availableBlocks.some(
+        (b) => b.toLocaleLowerCase("pt-BR") === selectedBlock.toLocaleLowerCase("pt-BR"),
+      )
+    ) {
+      setSelectedBlock("ALL")
+    }
+  }, [availableBlocks, selectedBlock])
+
   const filtered = useMemo(() => {
     const normalizedQuery = query.toLocaleLowerCase("pt-BR")
+    const normalizedSelectedBlock = selectedBlock.toLocaleLowerCase("pt-BR")
 
     return records.filter((record) => {
       if (selectedCategory !== "ALL" && record.categoria !== selectedCategory) {
         return false
       }
 
+      if (selectedBlock !== "ALL") {
+        const recordBlock = normalizeBlockValue(record.detail).toLocaleLowerCase("pt-BR")
+        if (recordBlock !== normalizedSelectedBlock) {
+          return false
+        }
+      }
+
       return `${record.name} ${record.categoria} ${record.detail}`
         .toLocaleLowerCase("pt-BR")
         .includes(normalizedQuery)
     })
-  }, [records, query, selectedCategory])
+  }, [records, query, selectedCategory, selectedBlock])
 
   function openForm(record?: RoomRecord) {
     setEditing(record ?? null)
     if (record) {
+      const normalizedDetail = normalizeBlockValue(record.detail || "")
+      const matchesExisting =
+        !normalizedDetail ||
+        availableBlocks.some(
+          (b) => b.toLocaleLowerCase("pt-BR") === normalizedDetail.toLocaleLowerCase("pt-BR"),
+        )
+
       setForm({
         name: record.name,
         categoria: record.categoria || "SALA",
-        detail: record.detail || "",
+        detail: normalizedDetail,
       })
+      setIsCreatingNewBlock(Boolean(normalizedDetail) && !matchesExisting)
     } else {
+      const initialBlock = selectedBlock !== "ALL" ? selectedBlock : ""
       setForm({
         name: "",
         categoria: selectedCategory !== "ALL" ? selectedCategory : "SALA",
-        detail: "",
+        detail: initialBlock,
       })
+      setIsCreatingNewBlock(availableBlocks.length === 0)
     }
     setError("")
     setFormOpen(true)
@@ -210,10 +266,15 @@ export default function Ambiente() {
 
     try {
       setSubmitting(true)
+      const normalizedDetail = normalizeBlockValue(form.detail)
+      const existingCanonicalBlock = availableBlocks.find(
+        (b) => b.toLocaleLowerCase("pt-BR") === normalizedDetail.toLocaleLowerCase("pt-BR"),
+      )
+
       const payload: Partial<AmbienteDTO> = {
         nome: form.name.trim(),
         categoria: form.categoria,
-        localizacao: form.detail.trim() || undefined,
+        localizacao: existingCanonicalBlock || normalizedDetail || undefined,
       }
       if (editing) {
         await api.put(`${API_ENDPOINTS.ambientes}/${editing.id}`, payload)
@@ -246,6 +307,13 @@ export default function Ambiente() {
       toast.error("Erro ao excluir registro.")
     }
   }
+
+  const matchedSelectBlock = availableBlocks.find(
+    (b) => b.toLocaleLowerCase("pt-BR") === normalizeBlockValue(form.detail).toLocaleLowerCase("pt-BR"),
+  )
+  const blockSelectValue = isCreatingNewBlock
+    ? NEW_BLOCK_OPTION
+    : matchedSelectBlock || ""
 
   return (
     <div className="admin-management ambiente-management">
@@ -291,6 +359,21 @@ export default function Ambiente() {
                 </option>
               ))}
             </select>
+
+            <select
+              className="course-filter-select"
+              aria-label="Filtrar ambientes por bloco"
+              value={selectedBlock}
+              onChange={(event) => setSelectedBlock(event.target.value)}
+              disabled={availableBlocks.length === 0}
+            >
+              <option value="ALL">Todos os blocos</option>
+              {availableBlocks.map((block) => (
+                <option key={block} value={block}>
+                  {block}
+                </option>
+              ))}
+            </select>
           </div>
           <span>{filtered.length} resultados</span>
         </div>
@@ -320,49 +403,51 @@ export default function Ambiente() {
                     {record.categoria && <small>{record.categoria}</small>}
                   </td>
                   <td>
-                    <button
-                      type="button"
-                      onClick={() => openQrModal(record)}
-                      aria-label={`Gerar QR Code de ${record.name}`}
-                      title="Gerar QR Code da grade do ambiente"
-                    >
-                      <svg
-                        width="17"
-                        height="17"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
+                    <div className="admin-table-actions">
+                      <button
+                        type="button"
+                        onClick={() => openQrModal(record)}
+                        aria-label={`Gerar QR Code de ${record.name}`}
+                        title="Gerar QR Code da grade do ambiente"
                       >
-                        <rect x="3" y="3" width="7" height="7" rx="1" />
-                        <rect x="14" y="3" width="7" height="7" rx="1" />
-                        <rect x="3" y="14" width="7" height="7" rx="1" />
-                        <path d="M14 14h3v3h-3z" />
-                        <path d="M20 14v3h-3" />
-                        <path d="M14 20h3" />
-                        <path d="M20 20h.01" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openForm(record)}
-                      aria-label={`Editar ${record.name}`}
-                      title="Editar ambiente"
-                    >
-                      <AdminIcon name="edit" size={17} />
-                    </button>
-                    <button
-                      type="button"
-                      className="danger-action"
-                      onClick={() => setDeleting(record)}
-                      aria-label={`Excluir ${record.name}`}
-                      title="Excluir ambiente"
-                    >
-                      <AdminIcon name="trash" size={17} />
-                    </button>
+                        <svg
+                          width="17"
+                          height="17"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <rect x="3" y="3" width="7" height="7" rx="1" />
+                          <rect x="14" y="3" width="7" height="7" rx="1" />
+                          <rect x="3" y="14" width="7" height="7" rx="1" />
+                          <path d="M14 14h3v3h-3z" />
+                          <path d="M20 14v3h-3" />
+                          <path d="M14 20h3" />
+                          <path d="M20 20h.01" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openForm(record)}
+                        aria-label={`Editar ${record.name}`}
+                        title="Editar ambiente"
+                      >
+                        <AdminIcon name="edit" size={17} />
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-action"
+                        onClick={() => setDeleting(record)}
+                        aria-label={`Excluir ${record.name}`}
+                        title="Excluir ambiente"
+                      >
+                        <AdminIcon name="trash" size={17} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -487,14 +572,42 @@ export default function Ambiente() {
               </select>
             </label>
 
-            <label className="admin-form-field">
-              <span>Localização</span>
-              <input
-                value={form.detail}
-                onChange={(e) => setForm((c) => ({ ...c, detail: e.target.value }))}
-                placeholder="Ex: Bloco A"
-              />
-            </label>
+            <div className="admin-form-field">
+              <span>Bloco / Localização</span>
+              {availableBlocks.length > 0 && (
+                <select
+                  aria-label="Selecionar bloco cadastrado"
+                  value={blockSelectValue}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === NEW_BLOCK_OPTION) {
+                      setIsCreatingNewBlock(true)
+                      setForm((c) => ({ ...c, detail: "" }))
+                    } else {
+                      setIsCreatingNewBlock(false)
+                      setForm((c) => ({ ...c, detail: value }))
+                    }
+                  }}
+                >
+                  <option value="">Sem bloco / Não informado</option>
+                  {availableBlocks.map((block) => (
+                    <option key={block} value={block}>
+                      {block}
+                    </option>
+                  ))}
+                  <option value={NEW_BLOCK_OPTION}>+ Digitar novo bloco...</option>
+                </select>
+              )}
+
+              {(availableBlocks.length === 0 || isCreatingNewBlock) && (
+                <input
+                  value={form.detail}
+                  onChange={(e) => setForm((c) => ({ ...c, detail: e.target.value }))}
+                  placeholder="Ex: Bloco A"
+                  style={availableBlocks.length > 0 ? { marginTop: "8px" } : undefined}
+                />
+              )}
+            </div>
 
             {error && <div className="admin-form-error">{error}</div>}
             <div className="admin-modal-actions">
