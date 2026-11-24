@@ -222,6 +222,12 @@ const SLOTS_SUPERIOR: TimeSlotDefinition[] = [
   { code: "N4", start: "21:20", end: "22:10" },
 ]
 
+const SLOTS_COMPLETO: TimeSlotDefinition[] = [
+  ...SLOTS_INTEGRADO,
+  { start: "18:10", end: "18:30", isBreak: true, breakLabel: "Intervalo" },
+  ...SLOTS_SUPERIOR,
+]
+
 function compareNaturalPtBr(a: string, b: string) {
   return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
 }
@@ -247,6 +253,11 @@ function inferModality(course?: CursoDTO, courseName = ""): ModalidadeCurso {
   return "INTEGRADO"
 }
 
+function parsePositiveParam(value: string | null): number | null {
+  const num = Number(value)
+  return Number.isFinite(num) && num > 0 ? num : null
+}
+
 export default function Horario() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [schedules, setSchedules] = useState<HorarioDTO[]>([])
@@ -257,10 +268,18 @@ export default function Horario() {
   const [rooms, setRooms] = useState<AmbienteDTO[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [selectedClassId, setSelectedClassId] = useState<number | null>(() => {
-    const paramTurmaId = Number(searchParams.get("turmaId"))
-    return Number.isFinite(paramTurmaId) && paramTurmaId > 0 ? paramTurmaId : null
-  })
+  const filterAmbienteId = useMemo(
+    () => parsePositiveParam(searchParams.get("ambienteId")),
+    [searchParams],
+  )
+  const filterProfessorId = useMemo(
+    () => parsePositiveParam(searchParams.get("professorId")),
+    [searchParams],
+  )
+
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(() =>
+    parsePositiveParam(searchParams.get("turmaId")),
+  )
   const [selectedLesson, setSelectedLesson] = useState<ScheduleLesson | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<HorarioDTO | null>(null)
@@ -275,6 +294,13 @@ export default function Horario() {
     if (targetClass?.cursoId) {
       nextParams.set("cursoId", String(targetClass.cursoId))
     }
+    setSearchParams(nextParams, { replace: true })
+  }
+
+  const clearResourceFilters = () => {
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete("ambienteId")
+    nextParams.delete("professorId")
     setSearchParams(nextParams, { replace: true })
   }
 
@@ -316,24 +342,50 @@ export default function Horario() {
       setTeachers(resTeachers.data)
       setRooms(resRooms.data)
 
-      const paramTurmaId = Number(searchParams.get("turmaId"))
-      const paramCursoId = Number(searchParams.get("cursoId"))
+      const paramTurmaId = parsePositiveParam(searchParams.get("turmaId"))
+      const paramCursoId = parsePositiveParam(searchParams.get("cursoId"))
+      const paramAmbienteId = parsePositiveParam(searchParams.get("ambienteId"))
+      const paramProfessorId = parsePositiveParam(searchParams.get("professorId"))
 
       if (sortedClasses.length > 0) {
-        const matchedByTurma =
-          Number.isFinite(paramTurmaId) && paramTurmaId > 0
-            ? sortedClasses.find((c) => Number(c.id) === paramTurmaId)
+        const matchedByTurma = paramTurmaId
+          ? sortedClasses.find((c) => Number(c.id) === paramTurmaId)
+          : undefined
+
+        const matchedByAmbiente =
+          !matchedByTurma && paramAmbienteId
+            ? (() => {
+                const lessonInRoom = resSchedules.data.find(
+                  (h) => Number(h.ambienteId) === paramAmbienteId && h.turmaId,
+                )
+                return lessonInRoom
+                  ? sortedClasses.find((c) => Number(c.id) === Number(lessonInRoom.turmaId))
+                  : undefined
+              })()
+            : undefined
+
+        const matchedByProfessor =
+          !matchedByTurma && !matchedByAmbiente && paramProfessorId
+            ? (() => {
+                const lessonByTeacher = resSchedules.data.find(
+                  (h) => Number(h.professorId) === paramProfessorId && h.turmaId,
+                )
+                return lessonByTeacher
+                  ? sortedClasses.find((c) => Number(c.id) === Number(lessonByTeacher.turmaId))
+                  : undefined
+              })()
             : undefined
 
         const matchedByCurso =
-          !matchedByTurma && Number.isFinite(paramCursoId) && paramCursoId > 0
+          !matchedByTurma && !matchedByAmbiente && !matchedByProfessor && paramCursoId
             ? sortedClasses.find((c) => Number(c.cursoId) === paramCursoId)
             : undefined
 
-        if (matchedByTurma) {
-          setSelectedClassId(Number(matchedByTurma.id))
-        } else if (matchedByCurso) {
-          setSelectedClassId(Number(matchedByCurso.id))
+        const resolvedClass =
+          matchedByTurma ?? matchedByAmbiente ?? matchedByProfessor ?? matchedByCurso
+
+        if (resolvedClass) {
+          setSelectedClassId(Number(resolvedClass.id))
         } else if (
           selectedClassId === null ||
           !sortedClasses.some((c) => Number(c.id) === Number(selectedClassId))
@@ -353,16 +405,31 @@ export default function Horario() {
   }, [])
 
   useEffect(() => {
-    const paramTurmaId = Number(searchParams.get("turmaId"))
+    const paramTurmaId = parsePositiveParam(searchParams.get("turmaId"))
     if (
-      Number.isFinite(paramTurmaId) &&
-      paramTurmaId > 0 &&
+      paramTurmaId &&
       classes.some((c) => Number(c.id) === paramTurmaId) &&
       Number(selectedClassId) !== paramTurmaId
     ) {
       setSelectedClassId(paramTurmaId)
     }
   }, [searchParams, classes, selectedClassId])
+
+  const filteredRoom = useMemo(
+    () =>
+      filterAmbienteId
+        ? rooms.find((r) => Number(r.id) === filterAmbienteId)
+        : undefined,
+    [filterAmbienteId, rooms],
+  )
+
+  const filteredTeacher = useMemo(
+    () =>
+      filterProfessorId
+        ? teachers.find((t) => Number(t.id) === filterProfessorId)
+        : undefined,
+    [filterProfessorId, teachers],
+  )
 
   const draftSchedules = useMemo(
     () => schedules.filter((item) => item.status === "RASCUNHO"),
@@ -393,18 +460,6 @@ export default function Horario() {
     [classes, currentClassIndex]
   )
 
-  function handlePrevClass() {
-    if (classes.length === 0) return
-    const prevIndex = currentClassIndex > 0 ? currentClassIndex - 1 : classes.length - 1
-    handleSelectClass(Number(classes[prevIndex].id))
-  }
-
-  function handleNextClass() {
-    if (classes.length === 0) return
-    const nextIndex = currentClassIndex >= 0 && currentClassIndex < classes.length - 1 ? currentClassIndex + 1 : 0
-    handleSelectClass(Number(classes[nextIndex].id))
-  }
-
   const selectedCourse = useMemo(() => {
     if (!selectedClass) return undefined
     return courses.find((c) => Number(c.id) === Number(selectedClass.cursoId))
@@ -415,17 +470,26 @@ export default function Horario() {
     return inferModality(selectedCourse, courseName)
   }, [selectedClass, selectedCourse])
 
-  const gridSlots = useMemo<TimeSlotDefinition[]>(() => {
-    return selectedModality === "SUPERIOR" ? SLOTS_SUPERIOR : SLOTS_INTEGRADO
-  }, [selectedModality])
+  const hasResourceFilter = Boolean(filterAmbienteId || filterProfessorId)
 
-  const classSchedules = useMemo(() => {
+  const gridSlots = useMemo<TimeSlotDefinition[]>(() => {
+    if (hasResourceFilter) return SLOTS_COMPLETO
+    return selectedModality === "SUPERIOR" ? SLOTS_SUPERIOR : SLOTS_INTEGRADO
+  }, [hasResourceFilter, selectedModality])
+
+  const visibleSchedules = useMemo(() => {
+    if (filterAmbienteId) {
+      return schedules.filter((item) => Number(item.ambienteId) === filterAmbienteId)
+    }
+    if (filterProfessorId) {
+      return schedules.filter((item) => Number(item.professorId) === filterProfessorId)
+    }
     if (!selectedClassId) return []
     return schedules.filter((item) => Number(item.turmaId) === Number(selectedClassId))
-  }, [schedules, selectedClassId])
+  }, [schedules, filterAmbienteId, filterProfessorId, selectedClassId])
 
   const selectedLessons: ScheduleLesson[] = useMemo(() => {
-    return classSchedules.map((item) => ({
+    return visibleSchedules.map((item) => ({
       id: String(item.id),
       className: item.turmaNome || "",
       subject: item.disciplinaNome || "",
@@ -438,7 +502,7 @@ export default function Horario() {
       rawSubject: item.disciplinaNome || "",
       needsReview: false,
     }))
-  }, [classSchedules])
+  }, [visibleSchedules])
 
   const classesByCourse = useMemo(() => {
     const map = new Map<string, TurmaDTO[]>()
@@ -503,8 +567,22 @@ export default function Horario() {
       diaSemana: day,
       horarioInicio: slot.start,
       horarioFim: slot.end,
+      ...(filterAmbienteId ? { ambienteId: filterAmbienteId } : {}),
+      ...(filterProfessorId ? { professorId: filterProfessorId } : {}),
     })
   }
+
+  const headingTitle = filteredRoom
+    ? filteredRoom.nome
+    : filteredTeacher
+      ? filteredTeacher.nome
+      : selectedClass?.nome ?? ""
+
+  const headingSubtitle = filteredRoom
+    ? filteredRoom.localizacao || "Horários vinculados ao ambiente"
+    : filteredTeacher
+      ? filteredTeacher.email || "Horários vinculados ao docente"
+      : selectedClass?.cursoNome || selectedCourse?.nome || ""
 
   return (
     <div className="admin-management horario-page">
@@ -530,46 +608,66 @@ export default function Horario() {
         </div>
       </div>
 
-      {/* Pré-visualização interativa por turma */}
+      {/* Pré-visualização interativa por turma / ambiente / professor */}
       <section className="admin-surface horario-schedule-preview">
         <div className="surface-heading horario-surface-heading">
           <div>
             <span>
-              GRADE INTERATIVA ({selectedModality === "SUPERIOR" ? "NOTURNO · 18:30-22:10" : "INTEGRADO · 07:00-18:10"})
+              {filteredRoom
+                ? "HORÁRIOS VINCULADOS AO AMBIENTE"
+                : filteredTeacher
+                  ? "HORÁRIOS VINCULADOS AO PROFESSOR"
+                  : `GRADE INTERATIVA (${selectedModality === "SUPERIOR" ? "NOTURNO · 18:30-22:10" : "INTEGRADO · 07:00-18:10"})`}
             </span>
-            <h2>Horário acadêmico por turma</h2>
+            <h2>
+              {filteredRoom
+                ? `Ocupação: ${filteredRoom.nome}`
+                : filteredTeacher
+                  ? `Aulas de ${filteredTeacher.nome}`
+                  : "Horário acadêmico por turma"}
+            </h2>
           </div>
 
-          <label className="admin-form-field horario-class-select">
-            <span>Selecione a turma</span>
-            <select
-              value={selectedClassId ?? ""}
-              onChange={(e) => handleSelectClass(Number(e.target.value))}
+          {hasResourceFilter ? (
+            <button
+              type="button"
+              className="admin-primary"
+              onClick={clearResourceFilters}
             >
-              {classesByCourse.map(([courseName, courseClasses]) => (
-                <optgroup key={courseName} label={courseName}>
-                  {courseClasses.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nome}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </label>
+              <AdminIcon name="close" size={16} /> Ver grade por turma
+            </button>
+          ) : (
+            <label className="admin-form-field horario-class-select">
+              <span>Selecione a turma</span>
+              <select
+                value={selectedClassId ?? ""}
+                onChange={(e) => handleSelectClass(Number(e.target.value))}
+              >
+                {classesByCourse.map(([courseName, courseClasses]) => (
+                  <optgroup key={courseName} label={courseName}>
+                    {courseClasses.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.nome}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
-        {selectedClass ? (
+        {(selectedClass || hasResourceFilter) ? (
           <>
             <ScheduleHeading
-              mode="class"
-              selected={selectedClass.nome}
-              course={selectedClass.cursoNome || selectedCourse?.nome || ""}
+              mode={filteredRoom ? "room" : filteredTeacher ? "teacher" : "class"}
+              selected={headingTitle}
+              course={headingSubtitle}
               lessons={selectedLessons}
             />
 
             <div className="schedule-scroll">
-              <div className="schedule-grid" aria-label={`Grade de ${selectedClass.nome}`}>
+              <div className="schedule-grid" aria-label={`Grade de ${headingTitle}`}>
                 <div className="grid-header time-header">
                   <AdminIcon name="clock" size={15} /> Horário
                 </div>
@@ -607,7 +705,7 @@ export default function Horario() {
                       </div>
 
                       {DIAS_SEMANA.map((day) => {
-                        const cellSchedules = classSchedules.filter((h) => {
+                        const cellSchedules = visibleSchedules.filter((h) => {
                           if (h.diaSemana !== day.key) return false
                           const start = h.horarioInicio.substring(0, 5)
                           const end = h.horarioFim.substring(0, 5)
@@ -628,7 +726,11 @@ export default function Horario() {
                                 >
                                   <strong>{h.disciplinaNome}</strong>
                                   <span>{h.professorNome}</span>
-                                  <small>{h.ambienteNome}</small>
+                                  <small>
+                                    {hasResourceFilter
+                                      ? h.turmaNome || h.ambienteNome
+                                      : h.ambienteNome}
+                                  </small>
                                   {h.status === "RASCUNHO" && <em>Rascunho</em>}
                                 </button>
                               ))
