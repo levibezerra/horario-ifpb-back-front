@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useNavigate } from "react-router-dom"
 import { AdminIcon } from "@/components/Icon"
 import { EMAIL_PATTERN } from "@/services/authService"
 import { toast } from "react-toastify"
 import Button from "@/components/Button"
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal"
 import InputField from "@/components/InputField"
-import { api } from "@/services/api"
+import { ROUTES } from "@/routes/paths"
+import { api, apiErrorMessage, extractFieldErrors } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import type { CursoDTO, ProfessorDTO } from "@/types/api"
 import "./professor.css"
@@ -19,6 +22,7 @@ type TeacherRecord = {
 }
 
 export default function Professor() {
+  const navigate = useNavigate()
   const [records, setRecords] = useState<TeacherRecord[]>([])
   const [availableCourses, setAvailableCourses] = useState<CursoDTO[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,6 +41,7 @@ export default function Professor() {
     cursosIds: [] as number[],
   })
   const [error, setError] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const loadData = async () => {
     try {
@@ -57,8 +62,8 @@ export default function Professor() {
           detail: p.cursosNomes?.join(", ") || "",
         })),
       )
-    } catch {
-      toast.error("Erro ao carregar os dados de professores.")
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -108,20 +113,27 @@ export default function Professor() {
       })
     }
     setError("")
+    setFieldErrors({})
     setFormOpen(true)
   }
 
   async function save(event: FormEvent) {
     event.preventDefault()
+    setError("")
+    setFieldErrors({})
+
     if (!form.name.trim()) {
+      setFieldErrors({ nome: "Informe o nome do professor antes de salvar." })
       setError("Informe o nome antes de salvar.")
       return
     }
     if (!form.email.trim()) {
+      setFieldErrors({ email: "Informe o e-mail do professor." })
       setError("Informe o e-mail do professor.")
       return
     }
     if (!EMAIL_PATTERN.test(form.email)) {
+      setFieldErrors({ email: "Informe um e-mail válido." })
       setError("Informe um e-mail válido.")
       return
     }
@@ -147,8 +159,10 @@ export default function Professor() {
       )
       setFormOpen(false)
       loadData()
-    } catch (err: any) {
-      const msg = err.response?.data?.message || "Erro ao salvar no servidor."
+    } catch (err: unknown) {
+      const fields = extractFieldErrors(err)
+      setFieldErrors(fields)
+      const msg = Object.values(fields)[0] || apiErrorMessage(err)
       setError(msg)
       toast.error(msg)
     } finally {
@@ -156,16 +170,11 @@ export default function Professor() {
     }
   }
 
-  async function confirmDelete() {
+  async function handleConfirmDelete() {
     if (!deleting) return
-    try {
-      await api.delete(`${API_ENDPOINTS.professores}/${deleting.id}`)
-      toast.success("Registro excluído com sucesso!")
-      setDeleting(null)
-      loadData()
-    } catch {
-      toast.error("Erro ao excluir registro.")
-    }
+    await api.delete(`${API_ENDPOINTS.professores}/${deleting.id}`)
+    toast.success(`Professor(a) "${deleting.name}" excluído(a) com sucesso!`)
+    await loadData()
   }
 
   return (
@@ -289,7 +298,12 @@ export default function Professor() {
               label="Nome do professor"
               name="name"
               value={form.name}
-              onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
+              onChange={(e) => {
+                setForm((c) => ({ ...c, name: e.target.value }))
+                if (error) setError("")
+                if (fieldErrors.nome) setFieldErrors((prev) => ({ ...prev, nome: "" }))
+              }}
+              error={fieldErrors.nome}
               placeholder="Nome do professor"
               required
             />
@@ -299,9 +313,16 @@ export default function Professor() {
               <input
                 type="email"
                 value={form.email}
-                onChange={(e) => setForm((c) => ({ ...c, email: e.target.value }))}
+                onChange={(e) => {
+                  setForm((c) => ({ ...c, email: e.target.value }))
+                  if (error) setError("")
+                  if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: "" }))
+                }}
                 placeholder="nome@ifpb.edu.br"
               />
+              {fieldErrors.email && (
+                <small style={{ color: "#991b1b" }}>{fieldErrors.email}</small>
+              )}
             </label>
 
             <label className="admin-form-field">
@@ -309,7 +330,10 @@ export default function Professor() {
               <input
                 type="url"
                 value={form.lattesUrl}
-                onChange={(e) => setForm((c) => ({ ...c, lattesUrl: e.target.value }))}
+                onChange={(e) => {
+                  setForm((c) => ({ ...c, lattesUrl: e.target.value }))
+                  if (error) setError("")
+                }}
                 placeholder="https://lattes.cnpq.br/..."
               />
             </label>
@@ -335,7 +359,7 @@ export default function Professor() {
               ))}
             </fieldset>
 
-            {error && <div className="admin-form-error">{error}</div>}
+            {error && <div className="admin-form-error" role="alert">{error}</div>}
             <div className="admin-modal-actions">
               <Button text="Cancelar" onClick={() => setFormOpen(false)} />
               <Button
@@ -348,30 +372,19 @@ export default function Professor() {
         </div>
       )}
 
-      {deleting && (
-        <div className="admin-modal-layer" role="alertdialog" aria-modal="true">
-          <button
-            className="admin-modal-backdrop"
-            onClick={() => setDeleting(null)}
-            aria-label="Cancelar exclusão"
-          />
-          <section className="admin-confirm">
-            <span>
-              <AdminIcon name="warning" size={24} />
-            </span>
-            <h2>Excluir professor?</h2>
-            <p>
-              O registro <strong>{deleting.name}</strong> será removido permanentemente.
-            </p>
-            <div>
-              <button onClick={() => setDeleting(null)}>Cancelar</button>
-              <button className="confirm-delete" onClick={confirmDelete}>
-                Excluir registro
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
+      <ConfirmDeleteModal
+        open={Boolean(deleting)}
+        title="Excluir professor?"
+        itemName={deleting?.name ?? ""}
+        dependencyActionLabel="Ver horários"
+        onDependencyAction={
+          deleting
+            ? () => navigate(`${ROUTES.adminSchedules}?professorId=${deleting.id}`)
+            : undefined
+        }
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleting(null)}
+      />
     </div>
   )
 }
