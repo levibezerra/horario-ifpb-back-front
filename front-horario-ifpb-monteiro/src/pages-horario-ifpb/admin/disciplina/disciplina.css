@@ -1,3 +1,11 @@
+/* A página reutiliza os estilos compartilhados de gerenciamento administrativo. */
+.disciplina-management .admin-table th:first-child,
+.disciplina-management .admin-table td:first-child,
+.disciplina-management .entity-name-cell,
+.disciplina-management .entity-name-cell strong {
+  white-space: nowrap;
+}
+
 .disciplina-management .entity-name-cell {
   display: inline-flex;
   align-items: center;
@@ -9,4 +17,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}/* A página reutiliza os estilos compartilhados de gerenciamento administrativo. */
+}
+
+.disciplina-management .admin-table th:last-child,
+.disciplina-management .admin-table td:last-child {
+  white-space: nowrap;
+}

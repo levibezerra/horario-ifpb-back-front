@@ -182,6 +182,34 @@ export default function Disciplina() {
     })
   }, [records, query, selectedClassId, availableClasses])
 
+  // Agrupamento de todas as turmas por curso para o seletor de filtro principal
+  const groupedFilterClasses = useMemo(() => {
+    const map = new Map<string, TurmaDTO[]>()
+
+    availableCourses.forEach((course) => {
+      const courseClasses = availableClasses.filter(
+        (cls) => Number(cls.cursoId) === Number(course.id),
+      )
+      if (courseClasses.length > 0) {
+        const label = course.codigo ? `${course.nome} (${course.codigo})` : course.nome
+        map.set(label, courseClasses)
+      }
+    })
+
+    const ungrouped = availableClasses.filter(
+      (cls) => !availableCourses.some((c) => Number(c.id) === Number(cls.cursoId)),
+    )
+    if (ungrouped.length > 0) {
+      ungrouped.forEach((cls) => {
+        const label = cls.cursoNome || "Outros cursos"
+        if (!map.has(label)) map.set(label, [])
+        map.get(label)!.push(cls)
+      })
+    }
+
+    return Array.from(map.entries())
+  }, [availableCourses, availableClasses])
+
   // Turmas filtradas pelos cursos marcados no checkbox e que ainda não foram adicionadas
   const filteredClassesForCourses = useMemo(() => {
     if (form.cursoIds.length === 0) return []
@@ -192,7 +220,7 @@ export default function Disciplina() {
     )
   }, [availableClasses, form.cursoIds, form.turmaIds])
 
-  // Agrupamento das turmas disponíveis por curso para exibição no <select>
+  // Agrupamento das turmas disponíveis por curso para exibição no <select> do modal
   const groupedAvailableClasses = useMemo(() => {
     const map = new Map<string, TurmaDTO[]>()
     filteredClassesForCourses.forEach((cls) => {
@@ -377,7 +405,7 @@ export default function Disciplina() {
 
             <select
               className="course-filter-select"
-              aria-label="Filtrar disciplinas por turma/período"
+              aria-label="Filtrar disciplinas por curso e turma"
               value={selectedClassId}
               onChange={(event) => {
                 const val = event.target.value
@@ -385,15 +413,15 @@ export default function Disciplina() {
               }}
             >
               <option value="ALL">Todas as disciplinas</option>
-              {availableClasses.map((cls) => {
-                const courseName =
-                  cls.cursoNome || availableCourses.find((c) => Number(c.id) === Number(cls.cursoId))?.nome || ""
-                return (
-                  <option key={cls.id} value={cls.id}>
-                    {cls.nome} — {courseName}
-                  </option>
-                )
-              })}
+              {groupedFilterClasses.map(([courseLabel, classList]) => (
+                <optgroup key={courseLabel} label={courseLabel}>
+                  {classList.map((cls) => (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.nome}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
           </div>
           <span>{filtered.length} resultados</span>
