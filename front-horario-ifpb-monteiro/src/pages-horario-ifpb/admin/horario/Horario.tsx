@@ -621,6 +621,7 @@ export default function Horario() {
       diaSemana: day,
       horarioInicio: slot.start,
       horarioFim: slot.end,
+      lockContextFields: true,
       ...(filterAmbienteId ? { ambienteId: filterAmbienteId } : {}),
       ...(filterProfessorId ? { professorId: filterProfessorId } : {}),
       ...(filterDisciplinaId ? { disciplinaId: filterDisciplinaId } : {}),

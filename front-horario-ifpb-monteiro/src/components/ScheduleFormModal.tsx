@@ -114,9 +114,13 @@ function filterTeachersForCourse(teachers: ProfessorDTO[], cursoId: number) {
 export type ScheduleInitialValues = {
   cursoId?: number
   turmaId?: number
+  disciplinaId?: number
+  professorId?: number
+  ambienteId?: number
   diaSemana?: DiaSemana
   horarioInicio?: string
   horarioFim?: string
+  lockContextFields?: boolean
 }
 
 type ScheduleFormModalProps = {
@@ -157,6 +161,8 @@ export function ScheduleFormModal({
   })
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
+
+  const lockContextFields = Boolean(editing || initialValues?.lockContextFields)
 
   const selectedCourse = useMemo(
     () => courses.find((c) => Number(c.id) === Number(form.cursoId)),
@@ -251,7 +257,10 @@ export function ScheduleFormModal({
       )
       const defaultTeachers = filterTeachersForCourse(teachers, defaultCursoId)
 
-      const defaultBloco = availableBlocos[0] || ""
+      const presetRoom = initialValues?.ambienteId
+        ? rooms.find((r) => Number(r.id) === Number(initialValues.ambienteId))
+        : undefined
+      const defaultBloco = presetRoom?.localizacao?.trim() || availableBlocos[0] || ""
       const defaultRooms = rooms.filter(
         (r) => (r.localizacao?.trim() || "Sem Bloco Definido") === defaultBloco
       )
@@ -259,10 +268,10 @@ export function ScheduleFormModal({
       setForm({
         cursoId: defaultCursoId,
         turmaId: defaultTurmaId,
-        disciplinaId: Number(defaultSubjects[0]?.id || 0),
-        professorId: Number(defaultTeachers[0]?.id || 0),
+        disciplinaId: Number(initialValues?.disciplinaId || defaultSubjects[0]?.id || 0),
+        professorId: Number(initialValues?.professorId || defaultTeachers[0]?.id || 0),
         bloco: defaultBloco,
-        ambienteId: Number(defaultRooms[0]?.id || rooms[0]?.id || 0),
+        ambienteId: Number(initialValues?.ambienteId || defaultRooms[0]?.id || rooms[0]?.id || 0),
         diaSemana: initialValues?.diaSemana || "SEGUNDA",
         horarioInicio: initialValues?.horarioInicio?.substring(0, 5) || defaultTimes[0],
         horarioFim: initialValues?.horarioFim?.substring(0, 5) || "",
@@ -278,6 +287,7 @@ export function ScheduleFormModal({
   }
 
   function handleCursoChange(cursoId: number) {
+    if (lockContextFields) return
     clearError()
     const courseObj = courses.find((c) => Number(c.id) === Number(cursoId))
     const nextTimes =
@@ -314,6 +324,7 @@ export function ScheduleFormModal({
   }
 
   function handleTurmaChange(turmaId: number) {
+    if (lockContextFields) return
     clearError()
     const turmaSubjects = filterSubjectsForCourseAndClass(
       subjects,
@@ -446,6 +457,11 @@ export function ScheduleFormModal({
   }
 
   const isSuperior = selectedModality === "SUPERIOR"
+  const lockedSelectStyle = {
+    backgroundColor: "#f1f3f0",
+    color: "#53665b",
+    cursor: "not-allowed",
+  }
 
   return (
     <div className="admin-modal-layer" role="dialog" aria-modal="true">
@@ -467,6 +483,8 @@ export function ScheduleFormModal({
             <select
               value={form.cursoId}
               onChange={(e) => handleCursoChange(Number(e.target.value))}
+              disabled={lockContextFields}
+              style={lockContextFields ? lockedSelectStyle : undefined}
             >
               <option value={0} disabled>Selecione um curso</option>
               {courses.map((item) => (
@@ -482,7 +500,8 @@ export function ScheduleFormModal({
             <select
               value={form.turmaId}
               onChange={(e) => handleTurmaChange(Number(e.target.value))}
-              disabled={!form.cursoId || availableClasses.length === 0}
+              disabled={lockContextFields || !form.cursoId || availableClasses.length === 0}
+              style={lockContextFields ? lockedSelectStyle : undefined}
             >
               {availableClasses.length === 0 ? (
                 <option value={0}>Nenhuma turma cadastrada neste curso</option>
@@ -573,9 +592,12 @@ export function ScheduleFormModal({
             <select
               value={form.diaSemana}
               onChange={(e) => {
+                if (lockContextFields) return
                 clearError()
                 setForm((c) => ({ ...c, diaSemana: e.target.value as DiaSemana }))
               }}
+              disabled={lockContextFields}
+              style={lockContextFields ? lockedSelectStyle : undefined}
             >
               {DIAS_SEMANA.map((day) => (
                 <option key={day} value={day}>{day}</option>
