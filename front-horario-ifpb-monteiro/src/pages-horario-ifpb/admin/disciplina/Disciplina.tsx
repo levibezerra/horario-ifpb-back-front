@@ -658,19 +658,7 @@ export default function Disciplina() {
         dependencyActionLabel="Ver horários"
         onDependencyAction={
           deleting
-            ? () => {
-                const firstTurmaId = deleting.turmaIds?.[0]
-                const firstCursoId = deleting.cursoIds?.[0] ?? deleting.cursoId
-                const params = new URLSearchParams()
-                if (firstCursoId) params.set("cursoId", String(firstCursoId))
-                if (firstTurmaId) params.set("turmaId", String(firstTurmaId))
-                const queryStr = params.toString()
-                navigate(
-                  queryStr
-                    ? `${ROUTES.adminSchedules}?${queryStr}`
-                    : ROUTES.adminSchedules,
-                )
-              }
+            ? () => navigate(`${ROUTES.adminSchedules}?disciplinaId=${deleting.id}`)
             : undefined
         }
         onConfirm={handleConfirmDelete}
