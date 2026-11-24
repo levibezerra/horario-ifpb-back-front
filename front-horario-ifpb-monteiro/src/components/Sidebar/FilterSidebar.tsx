@@ -38,7 +38,7 @@ export function FilterSidebar({
   return (
     <>
       {open && (
-        <button className="overlay" onClick={onClose} aria-label="Fechar filtros" />
+        <button type="button" className="overlay" onClick={onClose} aria-label="Fechar filtros" />
       )}
       <aside className={open ? "filter-panel open" : "filter-panel"}>
         <div className="filter-heading">
@@ -46,7 +46,7 @@ export function FilterSidebar({
             <p>CONSULTAR POR</p>
             <h2>{mode === "class" ? "Turmas" : mode === "teacher" ? "Professores" : "Ambientes"}</h2>
           </div>
-          <button onClick={onClose} aria-label="Fechar">
+          <button type="button" onClick={onClose} aria-label="Fechar">
             <Icon name="x" />
           </button>
         </div>
@@ -59,14 +59,14 @@ export function FilterSidebar({
             placeholder={`Buscar ${mode === "class" ? "turma" : mode === "teacher" ? "professor" : "ambiente"}...`}
           />
           {query && (
-            <button onClick={() => onQueryChange("")} aria-label="Limpar busca">
+            <button type="button" onClick={() => onQueryChange("")} aria-label="Limpar busca">
               <Icon name="x" size={16} />
             </button>
           )}
         </label>
         <div className="result-count">
           <span>{total} resultados</span>
-          {query && <button onClick={() => onQueryChange("")}>Limpar filtro</button>}
+          {query && <button type="button" onClick={() => onQueryChange("")}>Limpar filtro</button>}
         </div>
         <div className="group-list">
           {groups.map((group, index) => {
@@ -105,7 +105,8 @@ export function FilterSidebar({
                 </div>
                 {group.items.map((item) => (
                   <button
-                    key={item.id}
+                    type="button"
+                    key={`${group.group}-${item.id}`}
                     className={item.id === selected ? "filter-item selected" : "filter-item"}
                     onClick={() => {
                       onSelect(item.id)

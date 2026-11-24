@@ -54,26 +54,30 @@ export default function PorAmbiente() {
     loadData()
   }, [])
 
-  // Sincroniza a seleção inicial com ?sel=<nome ou id> (ex.: vindo da leitura de QR Code)
-  useEffect(() => {
+  // Resolve a sala referenciada na URL (?sel=<id> ou ?sel=<nome> vindo de QR Code)
+  const roomFromUrl = useMemo(() => {
     const sel = searchParams.get("sel")?.trim()
-    if (!sel || !rooms.length) return
+    if (!sel || !rooms.length) return undefined
+
+    const byId = rooms.find((r) => String(r.id) === sel)
+    if (byId) return byId
 
     const normalizedSel = sel.toLocaleLowerCase("pt-BR")
-    const matchedRoom = rooms.find(
-      (r) =>
-        r.nome.toLocaleLowerCase("pt-BR") === normalizedSel ||
-        String(r.id) === sel,
-    )
-
-    if (matchedRoom && matchedRoom.id != null) {
-      if (matchedRoom.categoria && matchedRoom.categoria !== category) {
-        setCategory(matchedRoom.categoria)
-      }
-      setSelectedRoomId(matchedRoom.id)
-      setQuery("")
-    }
+    return rooms.find((r) => r.nome.toLocaleLowerCase("pt-BR") === normalizedSel)
   }, [rooms, searchParams])
+
+  // Sincroniza a seleção inicial com ?sel= (ex.: clique direto ou leitura de QR Code)
+  useEffect(() => {
+    if (!roomFromUrl || roomFromUrl.id == null) return
+
+    if (roomFromUrl.categoria && roomFromUrl.categoria !== category) {
+      setCategory(roomFromUrl.categoria)
+    }
+    if (selectedRoomId !== roomFromUrl.id) {
+      setSelectedRoomId(roomFromUrl.id)
+    }
+    setQuery("")
+  }, [roomFromUrl])
 
   const courseInfoByClassId = useMemo(() => {
     const courseById = new Map<number, CursoDTO>()
@@ -105,22 +109,13 @@ export default function PorAmbiente() {
           room.nome.toLocaleLowerCase("pt-BR").includes(q) ||
           (room.localizacao || "").toLocaleLowerCase("pt-BR").includes(q),
       )
-      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { numeric: true }))
   }, [category, query, rooms])
 
   useEffect(() => {
-    // Evita sobrescrever a sala vinda via ?sel= antes da categoria atualizar
-    const sel = searchParams.get("sel")?.trim()
-    if (sel && rooms.length > 0) {
-      const normalizedSel = sel.toLocaleLowerCase("pt-BR")
-      const matchedFromUrl = rooms.find(
-        (r) =>
-          r.nome.toLocaleLowerCase("pt-BR") === normalizedSel ||
-          String(r.id) === sel,
-      )
-      if (matchedFromUrl && matchedFromUrl.categoria !== category) {
-        return
-      }
+    // Aguarda a categoria sincronizar quando há sala válida vinda da URL
+    if (roomFromUrl && roomFromUrl.categoria !== category) {
+      return
     }
 
     if (roomsInCategory.length > 0) {
@@ -130,16 +125,19 @@ export default function PorAmbiente() {
     } else {
       setSelectedRoomId(null)
     }
-  }, [roomsInCategory, selectedRoomId, searchParams, rooms, category])
+  }, [roomsInCategory, selectedRoomId, roomFromUrl, category])
 
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId)
 
   function handleSelectRoom(id: number) {
-    setSelectedRoomId(id)
-    const roomObj = rooms.find((r) => r.id === id)
-    if (roomObj) {
-      setSearchParams({ sel: roomObj.nome }, { replace: true })
+    const targetRoom = rooms.find((r) => r.id === id)
+    if (!targetRoom) return
+
+    if (targetRoom.categoria && targetRoom.categoria !== category) {
+      setCategory(targetRoom.categoria)
     }
+    setSelectedRoomId(id)
+    setSearchParams({ sel: String(id) }, { replace: true })
   }
 
   const lessons: ScheduleLesson[] = useMemo(() => {
@@ -186,7 +184,7 @@ export default function PorAmbiente() {
     })
 
     return Array.from(groupsMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b, "pt-BR"))
+      .sort(([a], [b]) => a.localeCompare(b, "pt-BR", { numeric: true }))
       .map(([blocoName, items]) => ({
         group: blocoName,
         caption: activeCategoryObj.label,
