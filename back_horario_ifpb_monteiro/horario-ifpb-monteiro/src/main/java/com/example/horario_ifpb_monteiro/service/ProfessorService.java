@@ -5,6 +5,7 @@ import com.example.horario_ifpb_monteiro.entity.Professor;
 import com.example.horario_ifpb_monteiro.exceptions.BusinessException;
 import com.example.horario_ifpb_monteiro.exceptions.ResourceNotFoundException;
 import com.example.horario_ifpb_monteiro.repository.CursoRepository;
+import com.example.horario_ifpb_monteiro.repository.HorarioRepository;
 import com.example.horario_ifpb_monteiro.repository.ProfessorRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +19,16 @@ public class ProfessorService {
 
     private final ProfessorRepository repository;
     private final CursoRepository cursoRepository;
+    private final HorarioRepository horarioRepository;
 
-    public ProfessorService(ProfessorRepository repository, CursoRepository cursoRepository) {
+    public ProfessorService(
+            ProfessorRepository repository,
+            CursoRepository cursoRepository,
+            HorarioRepository horarioRepository
+    ) {
         this.repository = repository;
         this.cursoRepository = cursoRepository;
+        this.horarioRepository = horarioRepository;
     }
 
     @Transactional(readOnly = true)
@@ -64,8 +71,17 @@ public class ProfessorService {
 
     @Transactional
     public void deletar(Long id) {
-        buscarPorId(id);
-        repository.deleteById(id);
+        Professor professor = buscarPorId(id);
+
+        long totalHorarios = horarioRepository.countByProfessorId(id);
+        if (totalHorarios > 0) {
+            throw new BusinessException(
+                    "Não é possível excluir o(a) professor(a) \"" + professor.getNome() + "\" porque existem "
+                            + totalHorarios + " horário(s) vinculados a ele(a). Remova ou reatribua os horários antes de excluir."
+            );
+        }
+
+        repository.delete(professor);
     }
 
     private void vincularCursos(Professor professor, Set<Long> cursosIds) {
