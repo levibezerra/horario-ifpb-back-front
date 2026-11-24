@@ -556,6 +556,21 @@ export default function Horario() {
     return Array.from(map.entries())
   }, [classes, courses])
 
+  function formatScheduleClassLabel(h: HorarioDTO): string {
+    const turmaObj = classes.find((c) => Number(c.id) === Number(h.turmaId))
+    const cursoObj = turmaObj
+      ? courses.find((c) => Number(c.id) === Number(turmaObj.cursoId))
+      : undefined
+
+    const turmaNome = h.turmaNome || turmaObj?.nome || ""
+    const cursoCodigo = cursoObj?.codigo?.trim()
+
+    if (turmaNome && cursoCodigo) {
+      return `${turmaNome} · ${cursoCodigo}`
+    }
+    return turmaNome || h.ambienteNome || ""
+  }
+
   function openForm(record?: HorarioDTO, preset?: ScheduleInitialValues) {
     setEditing(record ?? null)
     setInitialValues(preset ?? null)
@@ -565,7 +580,7 @@ export default function Horario() {
   function handleOccupiedSlotClick(h: HorarioDTO) {
     setSelectedLesson({
       id: String(h.id),
-      className: h.turmaNome || selectedClass?.nome || "",
+      className: formatScheduleClassLabel(h) || selectedClass?.nome || "",
       subject: h.disciplinaNome || "",
       teacher: h.professorNome || "",
       room: h.ambienteNome || "",
@@ -620,13 +635,43 @@ export default function Horario() {
         ? filteredSubject.nome
         : selectedClass?.nome ?? ""
 
-  const headingSubtitle = filteredRoom
-    ? filteredRoom.localizacao || "Horários vinculados ao ambiente"
-    : filteredTeacher
-      ? filteredTeacher.email || "Horários vinculados ao docente"
-      : filteredSubject
-        ? filteredSubject.cursoNome || "Horários vinculados à disciplina"
-        : selectedClass?.cursoNome || selectedCourse?.nome || ""
+  const headingSubtitle = useMemo(() => {
+    if (filteredRoom) {
+      return filteredRoom.localizacao || "Horários vinculados ao ambiente"
+    }
+    if (filteredTeacher) {
+      return filteredTeacher.email || "Horários vinculados ao docente"
+    }
+    if (filteredSubject) {
+      const subjectAny = filteredSubject as DisciplinaDTO & {
+        cursoIds?: number[]
+        cursosNomes?: string[]
+      }
+      const ids = Array.isArray(subjectAny.cursoIds)
+        ? subjectAny.cursoIds.map(Number)
+        : filteredSubject.cursoId
+          ? [Number(filteredSubject.cursoId)]
+          : []
+
+      if (ids.length > 0) {
+        const labels = ids
+          .map((id) => {
+            const c = courses.find((item) => Number(item.id) === id)
+            if (!c) return null
+            return c.codigo ? `${c.nome} (${c.codigo})` : c.nome
+          })
+          .filter(Boolean)
+        if (labels.length > 0) return labels.join(" · ")
+      }
+
+      return (
+        subjectAny.cursosNomes?.join(" · ") ||
+        filteredSubject.cursoNome ||
+        "Horários vinculados à disciplina"
+      )
+    }
+    return selectedClass?.cursoNome || selectedCourse?.nome || ""
+  }, [filteredRoom, filteredTeacher, filteredSubject, courses, selectedClass, selectedCourse])
 
   return (
     <div className="admin-management horario-page">
@@ -774,11 +819,14 @@ export default function Horario() {
                                 >
                                   <strong>{h.disciplinaNome}</strong>
                                   <span>{h.professorNome}</span>
-                                  <small>
-                                    {hasResourceFilter
-                                      ? h.turmaNome || h.ambienteNome
-                                      : h.ambienteNome}
-                                  </small>
+                                  {hasResourceFilter ? (
+                                    <small style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                      <Icon name="users" />
+                                      <span>{formatScheduleClassLabel(h)}</span>
+                                    </small>
+                                  ) : (
+                                    <small>{h.ambienteNome}</small>
+                                  )}
                                   {h.status === "RASCUNHO" && <em>Rascunho</em>}
                                 </button>
                               ))
