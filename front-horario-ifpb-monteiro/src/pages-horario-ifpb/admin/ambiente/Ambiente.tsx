@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useNavigate } from "react-router-dom"
 import QRCode from "qrcode"
 import { AdminIcon } from "@/components/Icon"
 import { toast } from "react-toastify"
 import Button from "@/components/Button"
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal"
 import InputField from "@/components/InputField"
-import { api } from "@/services/api"
+import { api, apiErrorMessage, extractFieldErrors } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
-import { ambientePath } from "@/routes/paths"
+import { ambientePath, ROUTES } from "@/routes/paths"
 import type { AmbienteDTO, CategoriaAmbiente } from "@/types/api"
 import "./ambiente.css"
 
@@ -47,7 +49,16 @@ function normalizeBlockValue(value: string): string {
   return value.trim().replace(/\s+/g, " ")
 }
 
+function getCategoryLabel(categoria: CategoriaAmbiente): string {
+  return (
+    ROOM_CATEGORIES_OPTIONS.find((item) => item.id === categoria)?.label ??
+    categoria
+  )
+}
+
 export default function Ambiente() {
+  const navigate = useNavigate()
+
   const [records, setRecords] = useState<RoomRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -70,6 +81,7 @@ export default function Ambiente() {
   })
   const [isCreatingNewBlock, setIsCreatingNewBlock] = useState(false)
   const [error, setError] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const loadData = async () => {
     try {
@@ -83,8 +95,8 @@ export default function Ambiente() {
           detail: a.localizacao || "",
         })),
       )
-    } catch {
-      toast.error("Erro ao carregar os dados de ambientes.")
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -172,6 +184,7 @@ export default function Ambiente() {
       setIsCreatingNewBlock(availableBlocks.length === 0)
     }
     setError("")
+    setFieldErrors({})
     setFormOpen(true)
   }
 
@@ -259,22 +272,51 @@ export default function Ambiente() {
 
   async function save(event: FormEvent) {
     event.preventDefault()
-    if (!form.name.trim()) {
-      setError("Informe o nome antes de salvar.")
+    setError("")
+    setFieldErrors({})
+
+    const trimmedName = normalizeBlockValue(form.name)
+    if (!trimmedName) {
+      const msg = "Informe o nome ou identificação do ambiente antes de salvar."
+      setFieldErrors({ nome: msg })
+      setError(msg)
+      return
+    }
+
+    const normalizedDetail = normalizeBlockValue(form.detail)
+    const existingCanonicalBlock = availableBlocks.find(
+      (b) => b.toLocaleLowerCase("pt-BR") === normalizedDetail.toLocaleLowerCase("pt-BR"),
+    )
+    const finalBlock = existingCanonicalBlock || normalizedDetail
+
+    const isDuplicateLocal = records.some((item) => {
+      if (editing && item.id === editing.id) return false
+      const sameName =
+        normalizeBlockValue(item.name).toLocaleLowerCase("pt-BR") ===
+        trimmedName.toLocaleLowerCase("pt-BR")
+      const sameCategory = item.categoria === form.categoria
+      const sameBlock =
+        normalizeBlockValue(item.detail || "").toLocaleLowerCase("pt-BR") ===
+        finalBlock.toLocaleLowerCase("pt-BR")
+      return sameName && sameCategory && sameBlock
+    })
+
+    if (isDuplicateLocal) {
+      const localInfo = finalBlock
+        ? `no bloco/localização "${finalBlock}"`
+        : "sem bloco/localização informada"
+      const duplicateMsg = `Já existe um ambiente cadastrado com o nome "${trimmedName}" do tipo "${getCategoryLabel(form.categoria)}" ${localInfo}.`
+      setFieldErrors({ nome: "Já existe um ambiente idêntico neste bloco." })
+      setError(duplicateMsg)
       return
     }
 
     try {
       setSubmitting(true)
-      const normalizedDetail = normalizeBlockValue(form.detail)
-      const existingCanonicalBlock = availableBlocks.find(
-        (b) => b.toLocaleLowerCase("pt-BR") === normalizedDetail.toLocaleLowerCase("pt-BR"),
-      )
-
       const payload: Partial<AmbienteDTO> = {
-        nome: form.name.trim(),
+        nome: trimmedName,
         categoria: form.categoria,
-        localizacao: existingCanonicalBlock || normalizedDetail || undefined,
+        localizacao: finalBlock || undefined,
       }
       if (editing) {
         await api.put(`${API_ENDPOINTS.ambientes}/${editing.id}`, payload)
@@ -283,12 +325,14 @@ export default function Ambiente() {
       }
 
       toast.success(
-        editing ? "Ambiente atualizado(a) com sucesso!" : "Ambiente cadastrado(a) com sucesso!",
+        editing ? "Ambiente atualizado com sucesso!" : "Ambiente cadastrado com sucesso!",
       )
       setFormOpen(false)
       loadData()
-    } catch (err: any) {
-      const msg = err.response?.data?.message || "Erro ao salvar no servidor."
+    } catch (err: unknown) {
+      const fields = extractFieldErrors(err)
+      setFieldErrors(fields)
+      const msg = Object.values(fields)[0] || apiErrorMessage(err)
       setError(msg)
       toast.error(msg)
     } finally {
@@ -296,16 +340,11 @@ export default function Ambiente() {
     }
   }
 
-  async function confirmDelete() {
+  async function handleConfirmDelete() {
     if (!deleting) return
-    try {
-      await api.delete(`${API_ENDPOINTS.ambientes}/${deleting.id}`)
-      toast.success("Registro excluído com sucesso!")
-      setDeleting(null)
-      loadData()
-    } catch {
-      toast.error("Erro ao excluir registro.")
-    }
+    await api.delete(`${API_ENDPOINTS.ambientes}/${deleting.id}`)
+    toast.success(`Ambiente "${deleting.name}" excluído com sucesso!`)
+    await loadData()
   }
 
   const matchedSelectBlock = availableBlocks.find(
@@ -400,7 +439,7 @@ export default function Ambiente() {
                   </td>
                   <td>
                     <span>{record.detail || "Não informado"}</span>
-                    {record.categoria && <small>{record.categoria}</small>}
+                    {record.categoria && <small>{getCategoryLabel(record.categoria)}</small>}
                   </td>
                   <td>
                     <div className="admin-table-actions">
@@ -551,7 +590,12 @@ export default function Ambiente() {
               label="Identificação ou nome"
               name="name"
               value={form.name}
-              onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
+              onChange={(e) => {
+                setForm((c) => ({ ...c, name: e.target.value }))
+                if (error) setError("")
+                if (fieldErrors.nome) setFieldErrors((prev) => ({ ...prev, nome: "" }))
+              }}
+              error={fieldErrors.nome}
               placeholder="Identificação ou nome"
               required
             />
@@ -560,9 +604,10 @@ export default function Ambiente() {
               <span>Categoria *</span>
               <select
                 value={form.categoria}
-                onChange={(e) =>
+                onChange={(e) => {
                   setForm((c) => ({ ...c, categoria: e.target.value as CategoriaAmbiente }))
-                }
+                  if (error) setError("")
+                }}
               >
                 {ROOM_CATEGORIES_OPTIONS.map((cat) => (
                   <option key={cat.id} value={cat.id}>
@@ -580,6 +625,7 @@ export default function Ambiente() {
                   value={blockSelectValue}
                   onChange={(e) => {
                     const value = e.target.value
+                    if (error) setError("")
                     if (value === NEW_BLOCK_OPTION) {
                       setIsCreatingNewBlock(true)
                       setForm((c) => ({ ...c, detail: "" }))
@@ -602,14 +648,21 @@ export default function Ambiente() {
               {(availableBlocks.length === 0 || isCreatingNewBlock) && (
                 <input
                   value={form.detail}
-                  onChange={(e) => setForm((c) => ({ ...c, detail: e.target.value }))}
+                  onChange={(e) => {
+                    setForm((c) => ({ ...c, detail: e.target.value }))
+                    if (error) setError("")
+                  }}
                   placeholder="Ex: Bloco A"
                   style={availableBlocks.length > 0 ? { marginTop: "8px" } : undefined}
                 />
               )}
             </div>
 
-            {error && <div className="admin-form-error">{error}</div>}
+            {error && (
+              <div className="admin-form-error" role="alert">
+                {error}
+              </div>
+            )}
             <div className="admin-modal-actions">
               <Button text="Cancelar" onClick={() => setFormOpen(false)} />
               <Button
@@ -622,30 +675,19 @@ export default function Ambiente() {
         </div>
       )}
 
-      {deleting && (
-        <div className="admin-modal-layer" role="alertdialog" aria-modal="true">
-          <button
-            className="admin-modal-backdrop"
-            onClick={() => setDeleting(null)}
-            aria-label="Cancelar exclusão"
-          />
-          <section className="admin-confirm">
-            <span>
-              <AdminIcon name="warning" size={24} />
-            </span>
-            <h2>Excluir ambiente?</h2>
-            <p>
-              O registro <strong>{deleting.name}</strong> será removido permanentemente.
-            </p>
-            <div>
-              <button onClick={() => setDeleting(null)}>Cancelar</button>
-              <button className="confirm-delete" onClick={confirmDelete}>
-                Excluir registro
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
+      <ConfirmDeleteModal
+        open={Boolean(deleting)}
+        title="Excluir ambiente?"
+        itemName={deleting?.name ?? ""}
+        dependencyActionLabel="Ver horários"
+        onDependencyAction={
+          deleting
+            ? () => navigate(`${ROUTES.adminSchedules}?ambienteId=${deleting.id}`)
+            : undefined
+        }
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleting(null)}
+      />
     </div>
   )
 }
