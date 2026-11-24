@@ -276,6 +276,10 @@ export default function Horario() {
     () => parsePositiveParam(searchParams.get("professorId")),
     [searchParams],
   )
+  const filterDisciplinaId = useMemo(
+    () => parsePositiveParam(searchParams.get("disciplinaId")),
+    [searchParams],
+  )
 
   const [selectedClassId, setSelectedClassId] = useState<number | null>(() =>
     parsePositiveParam(searchParams.get("turmaId")),
@@ -301,6 +305,7 @@ export default function Horario() {
     const nextParams = new URLSearchParams(searchParams)
     nextParams.delete("ambienteId")
     nextParams.delete("professorId")
+    nextParams.delete("disciplinaId")
     setSearchParams(nextParams, { replace: true })
   }
 
@@ -346,6 +351,7 @@ export default function Horario() {
       const paramCursoId = parsePositiveParam(searchParams.get("cursoId"))
       const paramAmbienteId = parsePositiveParam(searchParams.get("ambienteId"))
       const paramProfessorId = parsePositiveParam(searchParams.get("professorId"))
+      const paramDisciplinaId = parsePositiveParam(searchParams.get("disciplinaId"))
 
       if (sortedClasses.length > 0) {
         const matchedByTurma = paramTurmaId
@@ -376,13 +382,33 @@ export default function Horario() {
               })()
             : undefined
 
+        const matchedByDisciplina =
+          !matchedByTurma && !matchedByAmbiente && !matchedByProfessor && paramDisciplinaId
+            ? (() => {
+                const lessonBySubject = resSchedules.data.find(
+                  (h) => Number(h.disciplinaId) === paramDisciplinaId && h.turmaId,
+                )
+                return lessonBySubject
+                  ? sortedClasses.find((c) => Number(c.id) === Number(lessonBySubject.turmaId))
+                  : undefined
+              })()
+            : undefined
+
         const matchedByCurso =
-          !matchedByTurma && !matchedByAmbiente && !matchedByProfessor && paramCursoId
+          !matchedByTurma &&
+          !matchedByAmbiente &&
+          !matchedByProfessor &&
+          !matchedByDisciplina &&
+          paramCursoId
             ? sortedClasses.find((c) => Number(c.cursoId) === paramCursoId)
             : undefined
 
         const resolvedClass =
-          matchedByTurma ?? matchedByAmbiente ?? matchedByProfessor ?? matchedByCurso
+          matchedByTurma ??
+          matchedByAmbiente ??
+          matchedByProfessor ??
+          matchedByDisciplina ??
+          matchedByCurso
 
         if (resolvedClass) {
           setSelectedClassId(Number(resolvedClass.id))
@@ -431,6 +457,14 @@ export default function Horario() {
     [filterProfessorId, teachers],
   )
 
+  const filteredSubject = useMemo(
+    () =>
+      filterDisciplinaId
+        ? subjects.find((s) => Number(s.id) === filterDisciplinaId)
+        : undefined,
+    [filterDisciplinaId, subjects],
+  )
+
   const draftSchedules = useMemo(
     () => schedules.filter((item) => item.status === "RASCUNHO"),
     [schedules]
@@ -470,7 +504,9 @@ export default function Horario() {
     return inferModality(selectedCourse, courseName)
   }, [selectedClass, selectedCourse])
 
-  const hasResourceFilter = Boolean(filterAmbienteId || filterProfessorId)
+  const hasResourceFilter = Boolean(
+    filterAmbienteId || filterProfessorId || filterDisciplinaId,
+  )
 
   const gridSlots = useMemo<TimeSlotDefinition[]>(() => {
     if (hasResourceFilter) return SLOTS_COMPLETO
@@ -484,9 +520,12 @@ export default function Horario() {
     if (filterProfessorId) {
       return schedules.filter((item) => Number(item.professorId) === filterProfessorId)
     }
+    if (filterDisciplinaId) {
+      return schedules.filter((item) => Number(item.disciplinaId) === filterDisciplinaId)
+    }
     if (!selectedClassId) return []
     return schedules.filter((item) => Number(item.turmaId) === Number(selectedClassId))
-  }, [schedules, filterAmbienteId, filterProfessorId, selectedClassId])
+  }, [schedules, filterAmbienteId, filterProfessorId, filterDisciplinaId, selectedClassId])
 
   const selectedLessons: ScheduleLesson[] = useMemo(() => {
     return visibleSchedules.map((item) => ({
@@ -569,6 +608,7 @@ export default function Horario() {
       horarioFim: slot.end,
       ...(filterAmbienteId ? { ambienteId: filterAmbienteId } : {}),
       ...(filterProfessorId ? { professorId: filterProfessorId } : {}),
+      ...(filterDisciplinaId ? { disciplinaId: filterDisciplinaId } : {}),
     })
   }
 
@@ -576,13 +616,17 @@ export default function Horario() {
     ? filteredRoom.nome
     : filteredTeacher
       ? filteredTeacher.nome
-      : selectedClass?.nome ?? ""
+      : filteredSubject
+        ? filteredSubject.nome
+        : selectedClass?.nome ?? ""
 
   const headingSubtitle = filteredRoom
     ? filteredRoom.localizacao || "Horários vinculados ao ambiente"
     : filteredTeacher
       ? filteredTeacher.email || "Horários vinculados ao docente"
-      : selectedClass?.cursoNome || selectedCourse?.nome || ""
+      : filteredSubject
+        ? filteredSubject.cursoNome || "Horários vinculados à disciplina"
+        : selectedClass?.cursoNome || selectedCourse?.nome || ""
 
   return (
     <div className="admin-management horario-page">
@@ -608,7 +652,7 @@ export default function Horario() {
         </div>
       </div>
 
-      {/* Pré-visualização interativa por turma / ambiente / professor */}
+      {/* Pré-visualização interativa por turma / ambiente / professor / disciplina */}
       <section className="admin-surface horario-schedule-preview">
         <div className="surface-heading horario-surface-heading">
           <div>
@@ -617,14 +661,18 @@ export default function Horario() {
                 ? "HORÁRIOS VINCULADOS AO AMBIENTE"
                 : filteredTeacher
                   ? "HORÁRIOS VINCULADOS AO PROFESSOR"
-                  : `GRADE INTERATIVA (${selectedModality === "SUPERIOR" ? "NOTURNO · 18:30-22:10" : "INTEGRADO · 07:00-18:10"})`}
+                  : filteredSubject
+                    ? "HORÁRIOS VINCULADOS À DISCIPLINA"
+                    : `GRADE INTERATIVA (${selectedModality === "SUPERIOR" ? "NOTURNO · 18:30-22:10" : "INTEGRADO · 07:00-18:10"})`}
             </span>
             <h2>
               {filteredRoom
                 ? `Ocupação: ${filteredRoom.nome}`
                 : filteredTeacher
                   ? `Aulas de ${filteredTeacher.nome}`
-                  : "Horário acadêmico por turma"}
+                  : filteredSubject
+                    ? `Aulas de ${filteredSubject.nome}`
+                    : "Horário acadêmico por turma"}
             </h2>
           </div>
 
