@@ -1,1 +1,7 @@
 /* A página reutiliza os estilos compartilhados da grade e do perfil docente. */
+.por-professor-page .lesson-block-static,
+.por-professor-page .lesson-block-static:hover {
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}

@@ -25,6 +25,7 @@ type ScheduleGridProps = {
   modality?: ModalidadeCurso
   showEmptyPeriods?: boolean
   isAdmin?: boolean
+  interactive?: boolean
   onEditLesson?: (lessonId: string) => void
   onDeleteLesson?: (lessonId: string) => Promise<void> | void
 }
@@ -37,11 +38,14 @@ export function ScheduleGrid({
   modality,
   showEmptyPeriods = false,
   isAdmin = false,
+  interactive = true,
   onEditLesson,
   onDeleteLesson,
 }: ScheduleGridProps) {
   const navigate = useNavigate()
   const [selectedLesson, setSelectedLesson] = useState<ScheduleLesson | null>(null)
+
+  const isLessonInteractive = interactive && (isAdmin || mode !== "teacher")
 
   const todayIndex = new Date().getDay()
   const dayMap: Record<number, string> = {
@@ -122,12 +126,16 @@ export function ScheduleGrid({
         </div>
       )}
       <div className="grid-help">
-        <Icon name="info" size={16} />
-        <span>
-          {isAdmin
-            ? "Selecione uma aula para editar ou excluir o bloco."
-            : "Selecione uma aula para ver seus detalhes."}
-        </span>
+        {isLessonInteractive && (
+          <>
+            <Icon name="info" size={16} />
+            <span>
+              {isAdmin
+                ? "Selecione uma aula para editar ou excluir o bloco."
+                : "Selecione uma aula para ver seus detalhes."}
+            </span>
+          </>
+        )}
         <span className="legend">
           <i className="occupied" /> Aula <i className="break-legend" /> Intervalo <i className="free" /> Sem aula
         </span>
@@ -177,25 +185,43 @@ export function ScheduleGrid({
                 return (
                   <div className="grid-cell" role="cell" key={`${period.code}-${day}`}>
                     {cellLessons.length ? (
-                      cellLessons.map((lesson) => (
-                        <button
-                          className="lesson-block"
-                          style={{ backgroundColor: getDisciplinaColor(lesson.subject) }}
-                          onClick={() => setSelectedLesson(lesson)}
-                          key={`${lesson.id ?? lesson.className}-${lesson.day}-${lesson.start}-${lesson.subject}`}
-                        >
-                          <strong>{lesson.subject}</strong>
-                          <span>{lesson.teacher}</span>
-                          <small>
-                            <Icon name={mode === "teacher" || mode === "room" ? "users" : "clock"} size={13} />
-                            {mode === "teacher"
-                              ? `${lesson.className}${!isAdmin && lesson.courseCode ? ` · ${lesson.courseCode}` : ""}${lesson.room ? ` · ${lesson.room}` : ""}`
-                              : mode === "room"
-                                ? `${lesson.className}${!isAdmin && lesson.courseCode ? ` · ${lesson.courseCode}` : ""}`
-                                : `${period.start}–${period.end}${lesson.room ? ` · ${lesson.room}` : ""}`}
-                          </small>
-                        </button>
-                      ))
+                      cellLessons.map((lesson) => {
+                        const key = `${lesson.id ?? lesson.className}-${lesson.day}-${lesson.start}-${lesson.subject}`
+                        const content = (
+                          <>
+                            <strong>{lesson.subject}</strong>
+                            <span>{lesson.teacher}</span>
+                            <small>
+                              <Icon name={mode === "teacher" || mode === "room" ? "users" : "clock"} size={13} />
+                              {mode === "teacher"
+                                ? `${lesson.className}${!isAdmin && lesson.courseCode ? ` · ${lesson.courseCode}` : ""}${lesson.room ? ` · ${lesson.room}` : ""}`
+                                : mode === "room"
+                                  ? `${lesson.className}${!isAdmin && lesson.courseCode ? ` · ${lesson.courseCode}` : ""}`
+                                  : `${period.start}–${period.end}${lesson.room ? ` · ${lesson.room}` : ""}`}
+                            </small>
+                          </>
+                        )
+
+                        return isLessonInteractive ? (
+                          <button
+                            type="button"
+                            className="lesson-block"
+                            style={{ backgroundColor: getDisciplinaColor(lesson.subject) }}
+                            onClick={() => setSelectedLesson(lesson)}
+                            key={key}
+                          >
+                            {content}
+                          </button>
+                        ) : (
+                          <div
+                            className="lesson-block lesson-block-static"
+                            style={{ backgroundColor: getDisciplinaColor(lesson.subject), cursor: "default" }}
+                            key={key}
+                          >
+                            {content}
+                          </div>
+                        )
+                      })
                     ) : (
                       <div className="free-slot" aria-label={mode === "room" ? "Ambiente livre" : "Sem aula cadastrada"}>
                         {mode !== "room" && <span>Sem aula cadastrada</span>}
@@ -209,7 +235,7 @@ export function ScheduleGrid({
         </div>
       </div>
 
-      {selectedLesson && isAdmin && onEditLesson && onDeleteLesson && (
+      {isLessonInteractive && selectedLesson && isAdmin && onEditLesson && onDeleteLesson && (
         <AdminLessonModal
           lesson={selectedLesson}
           onClose={() => setSelectedLesson(null)}
@@ -218,7 +244,7 @@ export function ScheduleGrid({
         />
       )}
 
-      {selectedLesson && !isAdmin && (
+      {isLessonInteractive && selectedLesson && !isAdmin && (
         <LessonModal
           lesson={selectedLesson}
           onClose={() => setSelectedLesson(null)}

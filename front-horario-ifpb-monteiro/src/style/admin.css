@@ -711,7 +711,7 @@
 
 .surface-heading {
   min-height: 72px;
-  padding: 17px 20px;
+  padding: 17px 2px;
   border-bottom: 1px solid #ebe7de;
   display: flex;
   align-items: center;

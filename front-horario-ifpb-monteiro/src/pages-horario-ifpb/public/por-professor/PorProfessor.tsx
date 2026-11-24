@@ -159,7 +159,7 @@ export default function PorProfessor() {
   }, [teachers, query])
 
   return (
-    <div className="workspace">
+    <div className="workspace por-professor-page">
       <FilterSidebar
         mode="teacher"
         groups={filteredGroups}
@@ -189,7 +189,12 @@ export default function PorProfessor() {
               lessons={lessons}
               professorData={selectedTeacher}
             />
-            <ScheduleGrid lessons={lessons} mode="teacher" label={selectedTeacher.nome} />
+            <ScheduleGrid
+              lessons={lessons}
+              mode="teacher"
+              label={selectedTeacher.nome}
+              interactive={false}
+            />
           </>
         )}
       </main>
