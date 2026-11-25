@@ -9,6 +9,8 @@ import java.util.Optional;
 
 public interface DisciplinaRepository extends JpaRepository<Disciplina, Long> {
 
+    List<Disciplina> findByCursosId(Long cursoId);
+
     @Override
     @EntityGraph(attributePaths = {"curso", "cursos", "turmas"})
     List<Disciplina> findAll();
