@@ -3,7 +3,14 @@ import { Icon } from "@/components/Icon"
 import { useLocation } from "react-router-dom"
 import { ScheduleGrid, ScheduleHeading } from "@/components/ScheduleGrid"
 import { usePeriodoLetivo } from "@/hooks/usePeriodoLetivo"
-import type { HorarioDTO, ProfessorDTO, ScheduleLesson, TurmaDTO, ViewMode } from "@/types/api"
+import type {
+  CursoDTO,
+  HorarioDTO,
+  ProfessorDTO,
+  ScheduleLesson,
+  TurmaDTO,
+  ViewMode,
+} from "@/types/api"
 import { api } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import "./impressao.css"
@@ -39,6 +46,7 @@ export default function ImpressaoHorarios() {
   const value = params.get("valor") ?? ""
   const passedTitle = params.get("titulo") || (state as any)?.calendarTitle || ""
 
+  const [courses, setCourses] = useState<CursoDTO[]>([])
   const [classes, setClasses] = useState<TurmaDTO[]>([])
   const [teachers, setTeachers] = useState<ProfessorDTO[]>([])
   const [schedules, setSchedules] = useState<HorarioDTO[]>([])
@@ -97,11 +105,13 @@ export default function ImpressaoHorarios() {
 
     async function loadData() {
       try {
-        const [resClasses, resTeachers, resSchedules] = await Promise.all([
+        const [resCourses, resClasses, resTeachers, resSchedules] = await Promise.all([
+          api.get<CursoDTO[]>(API_ENDPOINTS.cursos),
           api.get<TurmaDTO[]>(API_ENDPOINTS.turmas),
           api.get<ProfessorDTO[]>(API_ENDPOINTS.professores),
           api.get<HorarioDTO[]>(API_ENDPOINTS.horarios),
         ])
+        setCourses(resCourses.data)
         setClasses(resClasses.data)
         setTeachers(resTeachers.data)
         setSchedules(resSchedules.data.filter((h) => h.status === "PUBLICADO"))
@@ -122,19 +132,35 @@ export default function ImpressaoHorarios() {
     document.body.removeChild(link)
   }
 
-  const toLesson = (item: HorarioDTO): ScheduleLesson => ({
-    id: String(item.id),
-    className: item.turmaNome || "",
-    subject: item.disciplinaNome || "",
-    teacher: item.professorNome || "",
-    room: item.ambienteNome || "",
-    day: item.diaSemana,
-    start: item.horarioInicio,
-    end: item.horarioFim,
-    status: item.status || "PUBLICADO",
-    rawSubject: item.disciplinaNome || "",
-    needsReview: false,
-  })
+  const toLesson = (item: HorarioDTO): ScheduleLesson => {
+    const turmaObj = classes.find(
+      (c) =>
+        (item.turmaId && Number(c.id) === Number(item.turmaId)) ||
+        (item.turmaNome && c.nome === item.turmaNome),
+    )
+    const cursoObj = turmaObj
+      ? courses.find((c) => Number(c.id) === Number(turmaObj.cursoId))
+      : undefined
+    const courseCode =
+      (item as HorarioDTO & { cursoCodigo?: string }).cursoCodigo ||
+      cursoObj?.codigo?.trim() ||
+      ""
+
+    return {
+      id: String(item.id),
+      className: item.turmaNome || turmaObj?.nome || "",
+      courseCode: courseCode || undefined,
+      subject: item.disciplinaNome || "",
+      teacher: item.professorNome || "",
+      room: item.ambienteNome || "",
+      day: item.diaSemana,
+      start: item.horarioInicio,
+      end: item.horarioFim,
+      status: item.status || "PUBLICADO",
+      rawSubject: item.disciplinaNome || "",
+      needsReview: false,
+    }
+  }
 
   const documents = useMemo<PrintDocument[]>(() => {
     if (kind === "calendario") return []
@@ -180,7 +206,7 @@ export default function ImpressaoHorarios() {
         lessons: classSchedules.map(toLesson),
       }
     })
-  }, [classes, kind, periodoLetivo, schedules, teachers, value])
+  }, [classes, courses, kind, periodoLetivo, schedules, teachers, value])
 
   const title =
     kind === "calendario"
