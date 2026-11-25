@@ -223,8 +223,8 @@ export function ScheduleGrid({
                         )
                       })
                     ) : (
-                      <div className="free-slot" aria-label={mode === "room" ? "Ambiente livre" : "Sem aula cadastrada"}>
-                        {mode !== "room" && <span>Sem aula cadastrada</span>}
+                      <div className="free-slot" aria-label="Sem aula cadastrada">
+                        <span>{mode === "room" ? "SEM AULA CADASTRADA" : "Sem aula cadastrada"}</span>
                       </div>
                     )}
                   </div>

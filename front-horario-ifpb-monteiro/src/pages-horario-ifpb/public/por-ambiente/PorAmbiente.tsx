@@ -112,20 +112,47 @@ export default function PorAmbiente() {
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { numeric: true }))
   }, [category, query, rooms])
 
+  const activeCategoryObj = ROOM_CATEGORIES.find((item) => item.id === category)!
+
+  const groups = useMemo(() => {
+    const groupsMap = new Map<string, { id: string; label: string }[]>()
+
+    roomsInCategory.forEach((room) => {
+      const blocoName = room.localizacao?.trim() || "Bloco não informado"
+      if (!groupsMap.has(blocoName)) {
+        groupsMap.set(blocoName, [])
+      }
+      groupsMap.get(blocoName)!.push({
+        id: String(room.id),
+        label: room.nome,
+      })
+    })
+
+    return Array.from(groupsMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b, "pt-BR", { numeric: true }))
+      .map(([blocoName, items]) => ({
+        group: blocoName,
+        caption: activeCategoryObj.label,
+        items,
+      }))
+  }, [roomsInCategory, activeCategoryObj.label])
+
   useEffect(() => {
     // Aguarda a categoria sincronizar quando há sala válida vinda da URL
     if (roomFromUrl && roomFromUrl.categoria !== category) {
       return
     }
 
-    if (roomsInCategory.length > 0) {
+    const firstRoomInFirstBlock = groups[0]?.items[0]
+
+    if (firstRoomInFirstBlock) {
       if (!roomsInCategory.some((r) => r.id === selectedRoomId)) {
-        setSelectedRoomId(roomsInCategory[0].id!)
+        setSelectedRoomId(Number(firstRoomInFirstBlock.id))
       }
     } else {
       setSelectedRoomId(null)
     }
-  }, [roomsInCategory, selectedRoomId, roomFromUrl, category])
+  }, [groups, roomsInCategory, selectedRoomId, roomFromUrl, category])
 
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId)
 
@@ -166,31 +193,6 @@ export default function PorAmbiente() {
         }
       })
   }, [schedules, selectedRoomId, courseInfoByClassId])
-
-  const activeCategoryObj = ROOM_CATEGORIES.find((item) => item.id === category)!
-
-  const groups = useMemo(() => {
-    const groupsMap = new Map<string, { id: string; label: string }[]>()
-
-    roomsInCategory.forEach((room) => {
-      const blocoName = room.localizacao?.trim() || "Bloco não informado"
-      if (!groupsMap.has(blocoName)) {
-        groupsMap.set(blocoName, [])
-      }
-      groupsMap.get(blocoName)!.push({
-        id: String(room.id),
-        label: room.nome,
-      })
-    })
-
-    return Array.from(groupsMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b, "pt-BR", { numeric: true }))
-      .map(([blocoName, items]) => ({
-        group: blocoName,
-        caption: activeCategoryObj.label,
-        items,
-      }))
-  }, [roomsInCategory, activeCategoryObj.label])
 
   return (
     <div className="workspace">
