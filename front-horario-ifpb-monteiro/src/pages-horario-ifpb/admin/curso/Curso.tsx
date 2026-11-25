@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useNavigate } from "react-router-dom"
 import { AdminIcon } from "@/components/Icon"
 import { toast } from "react-toastify"
 import Button from "@/components/Button"
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal"
 import InputField from "@/components/InputField"
-import { api } from "@/services/api"
+import { ROUTES } from "@/routes/paths"
+import { api, apiErrorMessage, extractFieldErrors } from "@/services/api"
 import { API_ENDPOINTS } from "@/services/api-support/endpoints"
 import type { CursoDTO, ModalidadeCurso } from "@/types/api"
 import "./curso.css"
@@ -22,7 +25,13 @@ const COURSE_MODALITIES_OPTIONS: { id: ModalidadeCurso; label: string }[] = [
   { id: "SUBSEQUENTE", label: "Técnico Subsequente" },
 ]
 
+function normalizeText(value: string): string {
+  return value.trim().replace(/\s+/g, " ")
+}
+
 export default function Curso() {
+  const navigate = useNavigate()
+
   const [records, setRecords] = useState<CourseRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -38,6 +47,7 @@ export default function Curso() {
     modalidade: "INTEGRADO" as ModalidadeCurso,
   })
   const [error, setError] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const loadData = async () => {
     try {
@@ -58,8 +68,8 @@ export default function Curso() {
           }
         }),
       )
-    } catch {
-      toast.error("Erro ao carregar os dados de cursos.")
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -94,25 +104,62 @@ export default function Curso() {
       })
     }
     setError("")
+    setFieldErrors({})
     setFormOpen(true)
   }
 
   async function save(event: FormEvent) {
     event.preventDefault()
-    if (!form.name.trim()) {
-      setError("Informe o nome antes de salvar.")
+    setError("")
+    setFieldErrors({})
+
+    const trimmedName = normalizeText(form.name)
+    const normalizedCode = form.code.trim().toUpperCase()
+
+    if (!trimmedName) {
+      const msg = "Informe o nome do curso antes de salvar."
+      setFieldErrors({ nome: msg })
+      setError(msg)
       return
     }
-    if (!form.code.trim()) {
-      setError("Informe o código do curso.")
+    if (!normalizedCode) {
+      const msg = "Informe o código do curso antes de salvar."
+      setFieldErrors({ codigo: msg })
+      setError(msg)
+      return
+    }
+
+    const duplicateCode = records.some(
+      (item) =>
+        (!editing || item.id !== editing.id) &&
+        item.code.trim().toUpperCase() === normalizedCode,
+    )
+    if (duplicateCode) {
+      const msg = `Já existe um curso cadastrado com o código "${normalizedCode}".`
+      setFieldErrors({ codigo: "Este código já está em uso." })
+      setError(msg)
+      return
+    }
+
+    const duplicateNameModality = records.some(
+      (item) =>
+        (!editing || item.id !== editing.id) &&
+        normalizeText(item.name).toLocaleLowerCase("pt-BR") ===
+          trimmedName.toLocaleLowerCase("pt-BR") &&
+        item.modalidade === form.modalidade,
+    )
+    if (duplicateNameModality) {
+      const msg = `Já existe um curso cadastrado com o nome "${trimmedName}" nesta modalidade.`
+      setFieldErrors({ nome: "Curso já cadastrado nesta modalidade." })
+      setError(msg)
       return
     }
 
     try {
       setSubmitting(true)
       const payload: Partial<CursoDTO> = {
-        nome: form.name.trim(),
-        codigo: form.code.trim(),
+        nome: trimmedName,
+        codigo: normalizedCode,
         modalidade: form.modalidade,
       }
       if (editing) {
@@ -122,12 +169,14 @@ export default function Curso() {
       }
 
       toast.success(
-        editing ? "Curso atualizado(a) com sucesso!" : "Curso cadastrado(a) com sucesso!",
+        editing ? "Curso atualizado com sucesso!" : "Curso cadastrado com sucesso!",
       )
       setFormOpen(false)
       loadData()
-    } catch (err: any) {
-      const msg = err.response?.data?.message || "Erro ao salvar no servidor."
+    } catch (err: unknown) {
+      const fields = extractFieldErrors(err)
+      setFieldErrors(fields)
+      const msg = Object.values(fields)[0] || apiErrorMessage(err)
       setError(msg)
       toast.error(msg)
     } finally {
@@ -135,16 +184,11 @@ export default function Curso() {
     }
   }
 
-  async function confirmDelete() {
+  async function handleConfirmDelete() {
     if (!deleting) return
-    try {
-      await api.delete(`${API_ENDPOINTS.cursos}/${deleting.id}`)
-      toast.success("Registro excluído com sucesso!")
-      setDeleting(null)
-      loadData()
-    } catch {
-      toast.error("Erro ao excluir registro.")
-    }
+    await api.delete(`${API_ENDPOINTS.cursos}/${deleting.id}`)
+    toast.success(`Curso "${deleting.name}" excluído com sucesso!`)
+    await loadData()
   }
 
   return (
@@ -250,7 +294,12 @@ export default function Curso() {
               label="Nome do curso"
               name="name"
               value={form.name}
-              onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
+              onChange={(e) => {
+                setForm((c) => ({ ...c, name: e.target.value }))
+                if (error) setError("")
+                if (fieldErrors.nome) setFieldErrors((prev) => ({ ...prev, nome: "" }))
+              }}
+              error={fieldErrors.nome}
               placeholder="Nome do curso"
               required
             />
@@ -260,7 +309,12 @@ export default function Curso() {
               label="Código do curso *"
               name="code"
               value={form.code}
-              onChange={(e) => setForm((c) => ({ ...c, code: e.target.value }))}
+              onChange={(e) => {
+                setForm((c) => ({ ...c, code: e.target.value }))
+                if (error) setError("")
+                if (fieldErrors.codigo) setFieldErrors((prev) => ({ ...prev, codigo: "" }))
+              }}
+              error={fieldErrors.codigo}
               placeholder="Ex: ADS, INFO, EDIF"
               required
             />
@@ -269,9 +323,10 @@ export default function Curso() {
               <span>Modalidade do curso *</span>
               <select
                 value={form.modalidade}
-                onChange={(e) =>
+                onChange={(e) => {
                   setForm((c) => ({ ...c, modalidade: e.target.value as ModalidadeCurso }))
-                }
+                  if (error) setError("")
+                }}
               >
                 {COURSE_MODALITIES_OPTIONS.map((mod) => (
                   <option key={mod.id} value={mod.id}>
@@ -281,7 +336,11 @@ export default function Curso() {
               </select>
             </label>
 
-            {error && <div className="admin-form-error">{error}</div>}
+            {error && (
+              <div className="admin-form-error" role="alert">
+                {error}
+              </div>
+            )}
             <div className="admin-modal-actions">
               <Button text="Cancelar" onClick={() => setFormOpen(false)} />
               <Button
@@ -294,30 +353,42 @@ export default function Curso() {
         </div>
       )}
 
-      {deleting && (
-        <div className="admin-modal-layer" role="alertdialog" aria-modal="true">
-          <button
-            className="admin-modal-backdrop"
-            onClick={() => setDeleting(null)}
-            aria-label="Cancelar exclusão"
-          />
-          <section className="admin-confirm">
-            <span>
-              <AdminIcon name="warning" size={24} />
-            </span>
-            <h2>Excluir curso?</h2>
-            <p>
-              O registro <strong>{deleting.name}</strong> será removido permanentemente.
-            </p>
-            <div>
-              <button onClick={() => setDeleting(null)}>Cancelar</button>
-              <button className="confirm-delete" onClick={confirmDelete}>
-                Excluir registro
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
+      <ConfirmDeleteModal
+        open={Boolean(deleting)}
+        title="Excluir curso?"
+        itemName={deleting?.name ?? ""}
+        dependencyActionLabel={(err) => {
+          const lower = err.toLowerCase()
+          if (lower.includes("turma")) return "Ver turmas"
+          if (lower.includes("disciplina")) return "Ver disciplinas"
+          if (lower.includes("professor")) {
+            return err.includes("1 professor(es)") ? "Ver professor" : "Ver professores"
+          }
+          return "Ver turmas"
+        }}
+        onDependencyAction={
+          deleting
+            ? (err) => {
+                const lower = err.toLowerCase()
+                if (lower.includes("turma")) {
+                  navigate(`${ROUTES.adminClasses}?cursoId=${deleting.id}`)
+                  return
+                }
+                if (lower.includes("disciplina")) {
+                  navigate(`${ROUTES.adminSubjects}?cursoId=${deleting.id}`)
+                  return
+                }
+                if (lower.includes("professor")) {
+                  navigate(`${ROUTES.adminTeachers}?cursoId=${deleting.id}`)
+                  return
+                }
+                navigate(`${ROUTES.adminClasses}?cursoId=${deleting.id}`)
+              }
+            : undefined
+        }
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleting(null)}
+      />
     </div>
   )
 }
