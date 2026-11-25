@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { AdminIcon } from "@/components/Icon"
 import { toast } from "react-toastify"
 import Button from "@/components/Button"
@@ -20,13 +20,18 @@ type ClassRecord = {
 
 export default function Turma() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const [records, setRecords] = useState<ClassRecord[]>([])
   const [availableCourses, setAvailableCourses] = useState<CursoDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
   const [query, setQuery] = useState("")
-  const [selectedCourseId, setSelectedCourseId] = useState<number | "ALL">("ALL")
+  const [selectedCourseId, setSelectedCourseId] = useState<number | "ALL">(() => {
+    const paramCursoId = Number(searchParams.get("cursoId"))
+    return Number.isFinite(paramCursoId) && paramCursoId > 0 ? paramCursoId : "ALL"
+  })
   const [editing, setEditing] = useState<ClassRecord | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [deleting, setDeleting] = useState<ClassRecord | null>(null)
@@ -37,6 +42,17 @@ export default function Turma() {
   })
   const [error, setError] = useState("")
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const handleSelectCourseFilter = (value: number | "ALL") => {
+    setSelectedCourseId(value)
+    const nextParams = new URLSearchParams(searchParams)
+    if (value === "ALL") {
+      nextParams.delete("cursoId")
+    } else {
+      nextParams.set("cursoId", String(value))
+    }
+    setSearchParams(nextParams, { replace: true })
+  }
 
   const loadData = async () => {
     try {
@@ -49,12 +65,24 @@ export default function Turma() {
       const loadedCourses = coursesRes.data
       setAvailableCourses(loadedCourses)
 
+      const paramCursoId = Number(searchParams.get("cursoId"))
+      if (
+        Number.isFinite(paramCursoId) &&
+        paramCursoId > 0 &&
+        loadedCourses.some((c) => Number(c.id) === paramCursoId)
+      ) {
+        setSelectedCourseId(paramCursoId)
+      }
+
       setRecords(
         res.data.map((t) => ({
           id: t.id!,
           name: t.nome,
-          detail: t.cursoNome || loadedCourses.find((c) => c.id === t.cursoId)?.nome || "",
-          cursoId: t.cursoId,
+          detail:
+            t.cursoNome ||
+            loadedCourses.find((c) => Number(c.id) === Number(t.cursoId))?.nome ||
+            "",
+          cursoId: Number(t.cursoId),
         })),
       )
     } catch (err) {
@@ -68,11 +96,26 @@ export default function Turma() {
     loadData()
   }, [])
 
+  useEffect(() => {
+    const paramCursoId = Number(searchParams.get("cursoId"))
+    if (
+      Number.isFinite(paramCursoId) &&
+      paramCursoId > 0 &&
+      availableCourses.some((c) => Number(c.id) === paramCursoId) &&
+      selectedCourseId !== paramCursoId
+    ) {
+      setSelectedCourseId(paramCursoId)
+    }
+  }, [searchParams, availableCourses, selectedCourseId])
+
   const filtered = useMemo(() => {
     const normalizedQuery = query.toLocaleLowerCase("pt-BR")
 
     const matching = records.filter((record) => {
-      if (selectedCourseId !== "ALL" && record.cursoId !== selectedCourseId) {
+      if (
+        selectedCourseId !== "ALL" &&
+        Number(record.cursoId) !== Number(selectedCourseId)
+      ) {
         return false
       }
       return `${record.name} ${record.detail}`
@@ -193,7 +236,7 @@ export default function Turma() {
               value={selectedCourseId}
               onChange={(event) => {
                 const val = event.target.value
-                setSelectedCourseId(val === "ALL" ? "ALL" : Number(val))
+                handleSelectCourseFilter(val === "ALL" ? "ALL" : Number(val))
               }}
             >
               <option value="ALL">Todas as turmas</option>
