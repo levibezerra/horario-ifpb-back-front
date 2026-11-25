@@ -28,6 +28,57 @@
   flex: 0 0 auto;
 }
 
+/* Alinhamento das linhas de intervalo (Manhã, Almoço e Tarde) na grade de impressão */
+.print-page .schedule-row {
+  align-items: stretch;
+}
+
+.print-page .time-cell.break-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.15;
+  padding: 6px 4px;
+  min-height: 38px;
+  box-sizing: border-box;
+}
+
+.print-page .time-cell.break-time strong {
+  display: block;
+  font-size: 0.62rem;
+  line-height: 1.15;
+}
+
+.print-page .time-cell.break-time span {
+  display: block;
+  font-size: 0.58rem;
+  line-height: 1.15;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.print-page .grid-cell.break-cell {
+  display: flex;
+  align-items: stretch;
+}
+
+.print-page .grid-cell.break-cell .break-block {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  box-sizing: border-box;
+}
+
+.print-page .grid-cell.break-cell .break-block strong,
+.print-page .grid-cell.break-cell .break-block span {
+  white-space: nowrap;
+}
+
 @media print {
   .print-page .schedule-heading {
     display: flex !important;
@@ -59,5 +110,45 @@
 
   .print-page .schedule-summary > div {
     padding: 6px 10px !important;
+  }
+
+  .print-page .schedule-row {
+    align-items: stretch !important;
+  }
+
+  .print-page .time-cell.break-time {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 5px 4px !important;
+    min-height: 34px !important;
+  }
+
+  .print-page .time-cell.break-time strong {
+    font-size: 0.56rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .print-page .time-cell.break-time span {
+    font-size: 0.54rem !important;
+    line-height: 1.1 !important;
+    margin-top: 2px !important;
+    white-space: nowrap !important;
+  }
+
+  .print-page .grid-cell.break-cell {
+    display: flex !important;
+    align-items: stretch !important;
+  }
+
+  .print-page .grid-cell.break-cell .break-block {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    min-height: 34px !important;
   }
 }
