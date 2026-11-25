@@ -508,8 +508,8 @@ export default function Ambiente() {
             onClick={() => setQrRoom(null)}
             aria-label="Fechar QR Code"
           />
-          <section className="admin-modal" style={{ maxWidth: "440px", textAlign: "center" }}>
-            <div className="admin-modal-heading" style={{ textAlign: "left" }}>
+          <section className="admin-modal ambiente-qr-modal">
+            <div className="admin-modal-heading">
               <div>
                 <span>QR CODE DO AMBIENTE</span>
                 <h2 id="qr-modal-title">{qrRoom.name}</h2>
@@ -519,42 +519,21 @@ export default function Ambiente() {
               </button>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "0.75rem",
-                padding: "1.25rem",
-                margin: "0.5rem 0 1rem",
-                borderRadius: "12px",
-                border: "1px solid #d0d7de",
-                backgroundColor: "#ffffff",
-              }}
-            >
+            <div className="ambiente-qr-preview">
               {qrDataUrl && (
                 <img
                   src={qrDataUrl}
                   alt={`QR Code da grade de ${qrRoom.name}`}
-                  style={{ width: "240px", height: "240px", display: "block" }}
                 />
               )}
-              <div style={{ fontSize: "0.875rem", color: "#374151" }}>
+              <div className="ambiente-qr-title">
                 <strong>{qrRoom.name}</strong>
                 {qrRoom.detail ? ` · ${qrRoom.detail}` : ""}
               </div>
-              <small
-                style={{
-                  fontSize: "0.75rem",
-                  color: "#6b7280",
-                  wordBreak: "break-all",
-                }}
-              >
-                {qrUrl}
-              </small>
+              <small className="ambiente-qr-url">{qrUrl}</small>
             </div>
 
-            <div className="admin-modal-actions" style={{ justifyContent: "space-between", gap: "0.5rem" }}>
+            <div className="admin-modal-actions ambiente-qr-actions">
               <Button text="Copiar link" onClick={handleCopyLink} />
               <Button
                 className="admin-primary"
@@ -647,13 +626,13 @@ export default function Ambiente() {
 
               {(availableBlocks.length === 0 || isCreatingNewBlock) && (
                 <input
+                  className={availableBlocks.length > 0 ? "ambiente-new-block-input" : undefined}
                   value={form.detail}
                   onChange={(e) => {
                     setForm((c) => ({ ...c, detail: e.target.value }))
                     if (error) setError("")
                   }}
                   placeholder="Ex: Bloco A"
-                  style={availableBlocks.length > 0 ? { marginTop: "8px" } : undefined}
                 />
               )}
             </div>
