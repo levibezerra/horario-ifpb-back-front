@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { AdminIcon } from "@/components/Icon"
 import { EMAIL_PATTERN } from "@/services/authService"
 import { toast } from "react-toastify"
@@ -23,13 +23,18 @@ type TeacherRecord = {
 
 export default function Professor() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const [records, setRecords] = useState<TeacherRecord[]>([])
   const [availableCourses, setAvailableCourses] = useState<CursoDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
   const [query, setQuery] = useState("")
-  const [selectedCourseId, setSelectedCourseId] = useState<number | "ALL">("ALL")
+  const [selectedCourseId, setSelectedCourseId] = useState<number | "ALL">(() => {
+    const paramCursoId = Number(searchParams.get("cursoId"))
+    return Number.isFinite(paramCursoId) && paramCursoId > 0 ? paramCursoId : "ALL"
+  })
   const [editing, setEditing] = useState<TeacherRecord | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [deleting, setDeleting] = useState<TeacherRecord | null>(null)
@@ -43,6 +48,17 @@ export default function Professor() {
   const [error, setError] = useState("")
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
+  const handleSelectCourseFilter = (value: number | "ALL") => {
+    setSelectedCourseId(value)
+    const nextParams = new URLSearchParams(searchParams)
+    if (value === "ALL") {
+      nextParams.delete("cursoId")
+    } else {
+      nextParams.set("cursoId", String(value))
+    }
+    setSearchParams(nextParams, { replace: true })
+  }
+
   const loadData = async () => {
     try {
       setLoading(true)
@@ -51,14 +67,25 @@ export default function Professor() {
         api.get<CursoDTO[]>(API_ENDPOINTS.cursos),
       ])
 
-      setAvailableCourses(coursesRes.data)
+      const loadedCourses = coursesRes.data
+      setAvailableCourses(loadedCourses)
+
+      const paramCursoId = Number(searchParams.get("cursoId"))
+      if (
+        Number.isFinite(paramCursoId) &&
+        paramCursoId > 0 &&
+        loadedCourses.some((c) => Number(c.id) === paramCursoId)
+      ) {
+        setSelectedCourseId(paramCursoId)
+      }
+
       setRecords(
         res.data.map((p) => ({
           id: p.id!,
           name: p.nome,
           email: p.email,
           lattesUrl: p.lattesUrl,
-          cursosIds: p.cursosIds || [],
+          cursosIds: (p.cursosIds || []).map(Number),
           detail: p.cursosNomes?.join(", ") || "",
         })),
       )
@@ -73,12 +100,24 @@ export default function Professor() {
     loadData()
   }, [])
 
+  useEffect(() => {
+    const paramCursoId = Number(searchParams.get("cursoId"))
+    if (
+      Number.isFinite(paramCursoId) &&
+      paramCursoId > 0 &&
+      availableCourses.some((c) => Number(c.id) === paramCursoId) &&
+      selectedCourseId !== paramCursoId
+    ) {
+      setSelectedCourseId(paramCursoId)
+    }
+  }, [searchParams, availableCourses, selectedCourseId])
+
   const filtered = useMemo(() => {
     const normalizedQuery = query.toLocaleLowerCase("pt-BR")
 
     const matching = records.filter((record) => {
       if (selectedCourseId !== "ALL") {
-        if (!record.cursosIds || !record.cursosIds.includes(selectedCourseId)) {
+        if (!record.cursosIds || !record.cursosIds.includes(Number(selectedCourseId))) {
           return false
         }
       }
@@ -212,7 +251,7 @@ export default function Professor() {
               value={selectedCourseId}
               onChange={(event) => {
                 const val = event.target.value
-                setSelectedCourseId(val === "ALL" ? "ALL" : Number(val))
+                handleSelectCourseFilter(val === "ALL" ? "ALL" : Number(val))
               }}
             >
               <option value="ALL">Todos os professores</option>
