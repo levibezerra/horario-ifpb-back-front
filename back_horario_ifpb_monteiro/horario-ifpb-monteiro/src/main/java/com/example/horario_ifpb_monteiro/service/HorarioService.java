@@ -75,6 +75,27 @@ public class HorarioService {
     }
 
     @Transactional
+    public void deletarEmLote(List<Long> horarioIds) {
+        if (horarioIds == null || horarioIds.isEmpty()) {
+            throw new BusinessException("Nenhum horário foi selecionado para exclusão.");
+        }
+        List<Horario> existentes = horarioRepository.findAllById(horarioIds);
+        if (existentes.isEmpty()) {
+            throw new ResourceNotFoundException("Nenhum dos horários informados foi encontrado.");
+        }
+        horarioRepository.deleteAllInBatch(existentes);
+    }
+
+    @Transactional
+    public void deletarPorTurma(Long turmaId) {
+        turmaService.buscarPorId(turmaId);
+        List<Horario> horariosDaTurma = horarioRepository.findByTurmaId(turmaId);
+        if (!horariosDaTurma.isEmpty()) {
+            horarioRepository.deleteAllInBatch(horariosDaTurma);
+        }
+    }
+
+    @Transactional
     public void publicarHorarios(List<Long> horarioIds) {
         LocalDateTime agora = LocalDateTime.now();
         if (horarioIds == null || horarioIds.isEmpty()) {
@@ -92,6 +113,29 @@ public class HorarioService {
             });
             horarioRepository.saveAll(horarios);
         }
+    }
+
+    @Transactional
+    public void despublicarHorarios(List<Long> horarioIds, Long turmaId) {
+        LocalDateTime agora = LocalDateTime.now();
+        List<Horario> alvos;
+
+        if (horarioIds != null && !horarioIds.isEmpty()) {
+            alvos = horarioRepository.findAllById(horarioIds);
+        } else if (turmaId != null) {
+            turmaService.buscarPorId(turmaId);
+            alvos = horarioRepository.findByTurmaId(turmaId).stream()
+                    .filter(h -> h.getStatus() == StatusHorario.PUBLICADO)
+                    .toList();
+        } else {
+            alvos = horarioRepository.findByStatus(StatusHorario.PUBLICADO);
+        }
+
+        alvos.forEach(h -> {
+            h.setStatus(StatusHorario.RASCUNHO);
+            h.setDataAtualizacao(agora);
+        });
+        horarioRepository.saveAll(alvos);
     }
 
     private void validarHorarioInicioEFim(Horario horario) {

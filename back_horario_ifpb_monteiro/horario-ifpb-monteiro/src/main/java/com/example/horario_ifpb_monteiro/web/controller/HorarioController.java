@@ -3,6 +3,7 @@ package com.example.horario_ifpb_monteiro.web.controller;
 import com.example.horario_ifpb_monteiro.entity.*;
 import com.example.horario_ifpb_monteiro.entity.Enum.StatusHorario;
 import com.example.horario_ifpb_monteiro.service.HorarioService;
+import com.example.horario_ifpb_monteiro.web.dto.DespublicarHorariosRequestDTO;
 import com.example.horario_ifpb_monteiro.web.dto.HorarioDTO;
 import com.example.horario_ifpb_monteiro.web.dto.PublicarHorariosRequestDTO;
 import jakarta.validation.Valid;
@@ -71,6 +72,27 @@ public class HorarioController {
     public ResponseEntity<Void> publicarHorarios(@RequestBody(required = false) PublicarHorariosRequestDTO dto) {
         List<Long> ids = (dto != null) ? dto.horarioIds() : null;
         horarioService.publicarHorarios(ids);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/despublicar")
+    public ResponseEntity<Void> despublicarHorarios(@RequestBody(required = false) DespublicarHorariosRequestDTO dto) {
+        List<Long> ids = (dto != null) ? dto.horarioIds() : null;
+        Long turmaId = (dto != null) ? dto.turmaId() : null;
+        horarioService.despublicarHorarios(ids, turmaId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/excluir-lote")
+    public ResponseEntity<Void> deletarEmLote(@RequestBody PublicarHorariosRequestDTO dto) {
+        List<Long> ids = (dto != null) ? dto.horarioIds() : null;
+        horarioService.deletarEmLote(ids);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/turma/{turmaId}")
+    public ResponseEntity<Void> deletarPorTurma(@PathVariable Long turmaId) {
+        horarioService.deletarPorTurma(turmaId);
         return ResponseEntity.noContent().build();
     }
 

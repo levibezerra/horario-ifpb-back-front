@@ -258,6 +258,11 @@ function parsePositiveParam(value: string | null): number | null {
   return Number.isFinite(num) && num > 0 ? num : null
 }
 
+type BulkDeleteConfirmState =
+  | { type: "selected"; ids: number[] }
+  | { type: "allClass"; turmaId: number; count: number; className: string }
+  | null
+
 export default function Horario() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [schedules, setSchedules] = useState<HorarioDTO[]>([])
@@ -267,6 +272,7 @@ export default function Horario() {
   const [teachers, setTeachers] = useState<ProfessorDTO[]>([])
   const [rooms, setRooms] = useState<AmbienteDTO[]>([])
   const [loading, setLoading] = useState(true)
+  const [batchProcessing, setBatchProcessing] = useState(false)
 
   const filterAmbienteId = useMemo(
     () => parsePositiveParam(searchParams.get("ambienteId")),
@@ -290,8 +296,14 @@ export default function Horario() {
   const [initialValues, setInitialValues] = useState<ScheduleInitialValues | null>(null)
   const [publishConfirmation, setPublishConfirmation] = useState(false)
 
+  // Estados para seleção múltipla e ações em lote
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedScheduleIds, setSelectedScheduleIds] = useState<number[]>([])
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState<BulkDeleteConfirmState>(null)
+
   const handleSelectClass = (classId: number) => {
     setSelectedClassId(classId)
+    setSelectedScheduleIds([])
     const targetClass = classes.find((c) => Number(c.id) === Number(classId))
     const nextParams = new URLSearchParams(searchParams)
     nextParams.set("turmaId", String(classId))
@@ -307,6 +319,7 @@ export default function Horario() {
     nextParams.delete("professorId")
     nextParams.delete("disciplinaId")
     setSearchParams(nextParams, { replace: true })
+    setSelectedScheduleIds([])
   }
 
   const loadAllData = async () => {
@@ -527,6 +540,20 @@ export default function Horario() {
     return schedules.filter((item) => Number(item.turmaId) === Number(selectedClassId))
   }, [schedules, filterAmbienteId, filterProfessorId, filterDisciplinaId, selectedClassId])
 
+  const visibleScheduleIds = useMemo(
+    () => visibleSchedules.map((h) => Number(h.id)).filter((id) => Number.isFinite(id) && id > 0),
+    [visibleSchedules]
+  )
+
+  // IDs selecionados que estão atualmente PUBLICADOS (elegíveis para remover da área pública)
+  const selectedPublishedIds = useMemo(() => {
+    if (!selectionMode || selectedScheduleIds.length === 0) return []
+    const selectedSet = new Set(selectedScheduleIds)
+    return visibleSchedules
+      .filter((h) => h.id != null && selectedSet.has(Number(h.id)) && h.status === "PUBLICADO")
+      .map((h) => Number(h.id))
+  }, [selectionMode, selectedScheduleIds, visibleSchedules])
+
   const selectedLessons: ScheduleLesson[] = useMemo(() => {
     return visibleSchedules.map((item) => ({
       id: String(item.id),
@@ -577,7 +604,33 @@ export default function Horario() {
     setFormOpen(true)
   }
 
+  function toggleScheduleSelection(id: number) {
+    setSelectedScheduleIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  function toggleSelectAllVisible() {
+    if (selectedScheduleIds.length === visibleScheduleIds.length) {
+      setSelectedScheduleIds([])
+    } else {
+      setSelectedScheduleIds(visibleScheduleIds)
+    }
+  }
+
+  function exitSelectionMode() {
+    setSelectionMode(false)
+    setSelectedScheduleIds([])
+  }
+
   function handleOccupiedSlotClick(h: HorarioDTO) {
+    if (selectionMode) {
+      if (h.id != null) {
+        toggleScheduleSelection(Number(h.id))
+      }
+      return
+    }
+
     setSelectedLesson({
       id: String(h.id),
       className: formatScheduleClassLabel(h) || selectedClass?.nome || "",
@@ -610,7 +663,65 @@ export default function Horario() {
     }
   }
 
+  async function handleConfirmBulkDelete() {
+    if (!bulkDeleteConfirm) return
+
+    try {
+      setBatchProcessing(true)
+      if (bulkDeleteConfirm.type === "allClass") {
+        await api.delete(`${API_ENDPOINTS.horariosPorTurma}/${bulkDeleteConfirm.turmaId}`)
+        toast.success(
+          `Todos os horários da turma ${bulkDeleteConfirm.className} foram excluídos!`
+        )
+      } else {
+        await api.post(API_ENDPOINTS.excluirHorariosLote, {
+          horarioIds: bulkDeleteConfirm.ids,
+        })
+        const count = bulkDeleteConfirm.ids.length
+        toast.success(
+          count === 1
+            ? "1 bloco de aula excluído com sucesso!"
+            : `${count} blocos de aula excluídos com sucesso!`
+        )
+      }
+      setSelectedScheduleIds([])
+      setSelectionMode(false)
+      setBulkDeleteConfirm(null)
+      await loadAllData()
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err))
+    } finally {
+      setBatchProcessing(false)
+    }
+  }
+
+  async function handleUnpublishSelected() {
+    if (selectedPublishedIds.length === 0) return
+
+    try {
+      setBatchProcessing(true)
+      await api.post(API_ENDPOINTS.despublicarHorarios, {
+        horarioIds: selectedPublishedIds,
+      })
+
+      const count = selectedPublishedIds.length
+      toast.success(
+        count === 1
+          ? "1 bloco removido da área pública e retornado para rascunho."
+          : `${count} blocos removidos da área pública e retornados para rascunho.`
+      )
+      setSelectedScheduleIds([])
+      setSelectionMode(false)
+      await loadAllData()
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err))
+    } finally {
+      setBatchProcessing(false)
+    }
+  }
+
   function handleEmptySlotClick(day: DiaSemana, slot: TimeSlotDefinition) {
+    if (selectionMode) return
     if (!selectedClass) {
       toast.info("Selecione uma turma antes de adicionar um bloco de aula.")
       return
@@ -674,6 +785,16 @@ export default function Horario() {
     return selectedClass?.cursoNome || selectedCourse?.nome || ""
   }, [filteredRoom, filteredTeacher, filteredSubject, courses, selectedClass, selectedCourse])
 
+  const allVisibleSelected =
+    visibleScheduleIds.length > 0 &&
+    selectedScheduleIds.length === visibleScheduleIds.length
+
+  const canUnpublishSelected =
+    !loading &&
+    !batchProcessing &&
+    selectionMode &&
+    selectedPublishedIds.length > 0
+
   return (
     <div className="admin-management horario-page">
       <div className="admin-page-heading">
@@ -683,18 +804,40 @@ export default function Horario() {
           <p>Clique em um bloco vazio da grade para cadastrar uma aula ou em um bloco preenchido para gerenciar.</p>
         </div>
         <div className="publish-control">
-          <span className={draftCount ? "has-drafts" : ""}>
-            {draftCount
-              ? `${draftCount} ${draftCount === 1 ? "rascunho pendente" : "rascunhos pendentes"}`
-              : "Grade publicada"}
-          </span>
-          <button
-            className="admin-primary"
-            onClick={() => setPublishConfirmation(true)}
-            disabled={loading || !draftCount}
-          >
-            <AdminIcon name="check" size={18} /> Publicar horários
-          </button>
+          <div className="publish-actions">
+            <button
+              type="button"
+              className="admin-danger-outline"
+              onClick={handleUnpublishSelected}
+              disabled={!canUnpublishSelected}
+              title={
+                !selectionMode
+                  ? "Clique em \"Selecionar\" na grade e marque os blocos publicados que deseja remover"
+                  : selectedPublishedIds.length === 0
+                    ? "Selecione pelo menos um bloco publicado na grade"
+                    : `Remover ${selectedPublishedIds.length} bloco(s) selecionado(s) da área pública`
+              }
+            >
+              <AdminIcon name="close" size={16} /> Remover da área pública
+              {canUnpublishSelected ? ` (${selectedPublishedIds.length})` : ""}
+            </button>
+
+            <div className="publish-primary-group">
+              <span className={`publish-status-badge ${draftCount ? "has-drafts" : ""}`}>
+                {draftCount
+                  ? `${draftCount} ${draftCount === 1 ? "rascunho pendente" : "rascunhos pendentes"}`
+                  : "Grade publicada"}
+              </span>
+              <button
+                type="button"
+                className="admin-primary"
+                onClick={() => setPublishConfirmation(true)}
+                disabled={loading || batchProcessing || !draftCount}
+              >
+                <AdminIcon name="check" size={16} /> Publicar horários
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -722,43 +865,120 @@ export default function Horario() {
             </h2>
           </div>
 
-          {hasResourceFilter ? (
-            <button
-              type="button"
-              className="admin-primary"
-              onClick={clearResourceFilters}
-            >
-              <AdminIcon name="close" size={16} /> Ver grade por turma
-            </button>
-          ) : (
-            <label className="admin-form-field horario-class-select">
-              <span>Selecione a turma</span>
-              <select
-                value={selectedClassId ?? ""}
-                onChange={(e) => handleSelectClass(Number(e.target.value))}
+          <div style={{ display: "flex", alignItems: "flex-end", gap: "0.75rem", flexWrap: "wrap" }}>
+            {hasResourceFilter ? (
+              <button
+                type="button"
+                className="admin-primary"
+                onClick={clearResourceFilters}
               >
-                {classesByCourse.map(([courseName, courseClasses]) => (
-                  <optgroup key={courseName} label={courseName}>
-                    {courseClasses.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.nome}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </label>
-          )}
+                <AdminIcon name="close" size={16} /> Ver grade por turma
+              </button>
+            ) : (
+              <label className="admin-form-field horario-class-select">
+                <span>Selecione a turma</span>
+                <select
+                  value={selectedClassId ?? ""}
+                  onChange={(e) => handleSelectClass(Number(e.target.value))}
+                  disabled={selectionMode}
+                >
+                  {classesByCourse.map(([courseName, courseClasses]) => (
+                    <optgroup key={courseName} label={courseName}>
+                      {courseClasses.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.nome}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
         </div>
 
         {(selectedClass || hasResourceFilter) ? (
           <>
-            <ScheduleHeading
-              mode={filteredRoom ? "room" : filteredTeacher ? "teacher" : "class"}
-              selected={headingTitle}
-              course={headingSubtitle}
-              lessons={selectedLessons}
-            />
+            <div className="horario-heading-toolbar">
+              <ScheduleHeading
+                mode={filteredRoom ? "room" : filteredTeacher ? "teacher" : "class"}
+                selected={headingTitle}
+                course={headingSubtitle}
+                lessons={selectedLessons}
+              />
+
+              {visibleScheduleIds.length > 0 && (
+                <div className="horario-compact-actions" role="toolbar" aria-label="Ações dos blocos da grade">
+                  {!selectionMode ? (
+                    <>
+                      <button
+                        type="button"
+                        className="horario-mini-btn"
+                        onClick={() => {
+                          setSelectionMode(true)
+                          setSelectedScheduleIds([])
+                        }}
+                        disabled={batchProcessing}
+                      >
+                        <AdminIcon name="check" size={13} /> Selecionar
+                      </button>
+
+                      {!hasResourceFilter && selectedClass && (
+                        <button
+                          type="button"
+                          className="horario-mini-btn danger"
+                          onClick={() =>
+                            setBulkDeleteConfirm({
+                              type: "allClass",
+                              turmaId: Number(selectedClass.id),
+                              count: visibleScheduleIds.length,
+                              className: selectedClass.nome,
+                            })
+                          }
+                          disabled={batchProcessing}
+                        >
+                          <AdminIcon name="trash" size={13} /> Deletar
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <label className="horario-mini-check">
+                        <input
+                          type="checkbox"
+                          checked={allVisibleSelected}
+                          onChange={toggleSelectAllVisible}
+                        />
+                        <span>Todos ({visibleScheduleIds.length})</span>
+                      </label>
+
+                      <button
+                        type="button"
+                        className="horario-mini-btn"
+                        onClick={exitSelectionMode}
+                        disabled={batchProcessing}
+                      >
+                        Cancelar
+                      </button>
+
+                      <button
+                        type="button"
+                        className="horario-mini-btn danger"
+                        disabled={selectedScheduleIds.length === 0 || batchProcessing}
+                        onClick={() =>
+                          setBulkDeleteConfirm({
+                            type: "selected",
+                            ids: selectedScheduleIds,
+                          })
+                        }
+                      >
+                        <AdminIcon name="trash" size={13} /> Deletar ({selectedScheduleIds.length})
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="schedule-scroll">
               <div className="schedule-grid" aria-label={`Grade de ${headingTitle}`}>
@@ -809,34 +1029,88 @@ export default function Horario() {
                         return (
                           <div className="grid-cell" key={`${day.key}-${slot.start}`}>
                             {cellSchedules.length > 0 ? (
-                              cellSchedules.map((h) => (
-                                <button
-                                  type="button"
-                                  key={h.id}
-                                  className="lesson-block"
-                                  style={{ backgroundColor: getDisciplinaColor(h.disciplinaNome || "") }}
-                                  onClick={() => handleOccupiedSlotClick(h)}
-                                  title="Clique para editar ou excluir este bloco"
-                                >
-                                  <strong>{h.disciplinaNome}</strong>
-                                  <span>{h.professorNome}</span>
-                                  {hasResourceFilter ? (
-                                    <small style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                                      <Icon name="users" />
-                                      <span>{formatScheduleClassLabel(h)}</span>
-                                    </small>
-                                  ) : (
-                                    <small>{h.ambienteNome}</small>
-                                  )}
-                                  {h.status === "RASCUNHO" && <em>Rascunho</em>}
-                                </button>
-                              ))
+                              cellSchedules.map((h) => {
+                                const scheduleId = Number(h.id)
+                                const isChecked = selectionMode && selectedScheduleIds.includes(scheduleId)
+
+                                return (
+                                  <button
+                                    type="button"
+                                    key={h.id}
+                                    className="lesson-block"
+                                    style={{
+                                      backgroundColor: getDisciplinaColor(h.disciplinaNome || ""),
+                                      position: "relative",
+                                      outline: isChecked ? "2.5px solid #dc2626" : undefined,
+                                      outlineOffset: isChecked ? "-2px" : undefined,
+                                    }}
+                                    onClick={() => handleOccupiedSlotClick(h)}
+                                    title={
+                                      selectionMode
+                                        ? "Clique para marcar ou desmarcar este bloco"
+                                        : "Clique para editar ou excluir este bloco"
+                                    }
+                                  >
+                                    {selectionMode && (
+                                      <span
+                                        style={{
+                                          position: "absolute",
+                                          top: "6px",
+                                          right: "6px",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          backgroundColor: "#ffffff",
+                                          borderRadius: "4px",
+                                          padding: "2px",
+                                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                                        }}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={() => {}}
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            toggleScheduleSelection(scheduleId)
+                                          }}
+                                          aria-label={`Selecionar aula ${h.disciplinaNome}`}
+                                          style={{
+                                            width: "15px",
+                                            height: "15px",
+                                            margin: 0,
+                                            accentColor: "#dc2626",
+                                            cursor: "pointer",
+                                          }}
+                                        />
+                                      </span>
+                                    )}
+
+                                    <strong>{h.disciplinaNome}</strong>
+                                    <span>{h.professorNome}</span>
+                                    {hasResourceFilter ? (
+                                      <small style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                        <Icon name="users" />
+                                        <span>{formatScheduleClassLabel(h)}</span>
+                                      </small>
+                                    ) : (
+                                      <small>{h.ambienteNome}</small>
+                                    )}
+                                    {h.status === "RASCUNHO" && <em>Rascunho</em>}
+                                  </button>
+                                )
+                              })
                             ) : (
                               <button
                                 type="button"
                                 className="free-slot interactive-free-slot"
                                 onClick={() => handleEmptySlotClick(day.key, slot)}
-                                title={`Clique para adicionar aula em ${day.label} (${slot.code} · ${slot.start}-${slot.end})`}
+                                disabled={selectionMode}
+                                title={
+                                  selectionMode
+                                    ? undefined
+                                    : `Clique para adicionar aula em ${day.label} (${slot.code} · ${slot.start}-${slot.end})`
+                                }
                               >
                                 <span>Sem aula cadastrada</span>
                               </button>
@@ -883,6 +1157,7 @@ export default function Horario() {
         onSaved={loadAllData}
       />
 
+      {/* Modal de confirmação de publicação */}
       {publishConfirmation && (
         <div className="admin-modal-layer" role="alertdialog" aria-modal="true" aria-labelledby="publish-title">
           <button className="admin-modal-backdrop" onClick={() => setPublishConfirmation(false)} aria-label="Cancelar publicação" />
@@ -895,6 +1170,49 @@ export default function Horario() {
             <div>
               <button onClick={() => setPublishConfirmation(false)}>Cancelar</button>
               <button className="confirm-publish" onClick={handlePublish}>Confirmar publicação</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* Modal de confirmação de exclusão em lote / apagar todos da turma */}
+      {bulkDeleteConfirm && (
+        <div className="admin-modal-layer" role="alertdialog" aria-modal="true" aria-labelledby="bulk-delete-title">
+          <button
+            className="admin-modal-backdrop"
+            onClick={() => !batchProcessing && setBulkDeleteConfirm(null)}
+            aria-label="Cancelar exclusão"
+          />
+          <section className="admin-confirm">
+            <span style={{ backgroundColor: "rgba(220, 38, 38, 0.12)", color: "#dc2626" }}>
+              <AdminIcon name="trash" size={24} />
+            </span>
+            <h2 id="bulk-delete-title">
+              {bulkDeleteConfirm.type === "allClass"
+                ? `Apagar todos os horários da turma ${bulkDeleteConfirm.className}?`
+                : `Excluir ${bulkDeleteConfirm.ids.length} bloco(s) selecionado(s)?`}
+            </h2>
+            <p>
+              {bulkDeleteConfirm.type === "allClass"
+                ? `Esta ação excluirá permanentemente todos os ${bulkDeleteConfirm.count} blocos de aula cadastrados para a turma ${bulkDeleteConfirm.className}.`
+                : `Esta ação excluirá permanentemente os ${bulkDeleteConfirm.ids.length} blocos de aula marcados na grade.`}
+            </p>
+            <div>
+              <button
+                type="button"
+                onClick={() => setBulkDeleteConfirm(null)}
+                disabled={batchProcessing}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                style={{ backgroundColor: "#dc2626", color: "#ffffff" }}
+                onClick={handleConfirmBulkDelete}
+                disabled={batchProcessing}
+              >
+                {batchProcessing ? "Excluindo..." : "Confirmar exclusão"}
+              </button>
             </div>
           </section>
         </div>
