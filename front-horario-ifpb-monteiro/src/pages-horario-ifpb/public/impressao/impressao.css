@@ -28,6 +28,15 @@
   flex: 0 0 auto;
 }
 
+/* Cabeçalhos dos dias da semana em verde fixo na pré-visualização e impressão */
+.print-page .schedule-grid .grid-header:not(.time-header),
+.print-page .schedule-grid .grid-header.active-day-header {
+  background-color: #113822 !important;
+  color: #ffffff !important;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
 /* Alinhamento das linhas de intervalo (Manhã, Almoço e Tarde) na grade de impressão */
 .print-page .schedule-row {
   align-items: stretch;
@@ -110,6 +119,14 @@
 
   .print-page .schedule-summary > div {
     padding: 6px 10px !important;
+  }
+
+  .print-page .schedule-grid .grid-header:not(.time-header),
+  .print-page .schedule-grid .grid-header.active-day-header {
+    background-color: #113822 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .print-page .schedule-row {
