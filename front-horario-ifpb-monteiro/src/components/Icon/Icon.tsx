@@ -16,6 +16,7 @@ export type IconName =
   | "external"
   | "home"
   | "graduation"
+  | "calendar"
 
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactNode> = {
@@ -100,6 +101,13 @@ export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
       <>
         <path d="M14 4h6v6M20 4l-9 9" />
         <path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6" />
+      </>
+    ),
+    calendar: (
+      <>
+        <rect x="3" y="4" width="18" height="17" rx="2" />
+        <path d="M16 2v4M8 2v4M3 10h18" />
+        <path d="M8 14h2M14 14h2M8 18h2M14 18h2" />
       </>
     ),
   }

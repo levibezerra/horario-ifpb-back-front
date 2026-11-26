@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react"
+import { Icon } from "@/components/Icon"
 import { FilterSidebar } from "@/components/Sidebar"
 import { ProfessorCard } from "@/components/ProfessorCard"
 import { MobileSelection, ScheduleGrid, ScheduleHeading } from "@/components/ScheduleGrid"
@@ -27,10 +28,12 @@ export default function PorProfessor() {
   const [courses, setCourses] = useState<CursoDTO[]>([])
   const [schedules, setSchedules] = useState<HorarioDTO[]>([])
   const [query, setQuery] = useState("")
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function loadData() {
       try {
+        setLoading(true)
         const [resTeachers, resClasses, resCourses, resSchedules] = await Promise.all([
           api.get<ProfessorDTO[]>(API_ENDPOINTS.professores),
           api.get<TurmaDTO[]>(API_ENDPOINTS.turmas),
@@ -43,6 +46,8 @@ export default function PorProfessor() {
         setSchedules(resSchedules.data.filter((h) => h.status === "PUBLICADO"))
       } catch (err) {
         console.error("Erro ao carregar consulta por professor", err)
+      } finally {
+        setLoading(false)
       }
     }
     loadData()
@@ -158,8 +163,14 @@ export default function PorProfessor() {
     }))
   }, [teachers, query])
 
+  const hasPublishedLessons = lessons.length > 0
+
   return (
-    <div className="workspace por-professor-page">
+    <div
+      className={`workspace por-professor-page${
+        !loading && selectedTeacher && !hasPublishedLessons ? " teacher-empty-schedule" : ""
+      }`}
+    >
       <FilterSidebar
         mode="teacher"
         groups={filteredGroups}
@@ -195,6 +206,19 @@ export default function PorProfessor() {
               label={selectedTeacher.nome}
               interactive={false}
             />
+
+            {!loading && !hasPublishedLessons && (
+              <div className="teacher-empty-notice" role="status">
+                <span>
+                  <Icon name="calendar" size={24} />
+                </span>
+                <strong>Nenhum horário publicado para este docente</strong>
+                <p>
+                  O(A) docente <strong>{selectedTeacher.nome}</strong> ainda não possui blocos de
+                  aula publicados na grade semanal.
+                </p>
+              </div>
+            )}
           </>
         )}
       </main>

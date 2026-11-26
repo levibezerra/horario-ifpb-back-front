@@ -168,6 +168,75 @@
 .grid-cell.break-cell { min-height: 66px; }.break-block { min-height: 66px; height: 100%; border: 1px solid #e7ce8e; border-radius: 11px; background: #fff4d4; color: #6a5422; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 10px; text-align: center; }.break-block strong { font: 700 9px 'Manrope'; }.break-block span { color: #927636; font-size: 8px; }
 .mobile-selection { display: none; }
 
+/* Estado vazio abaixo dos dias da semana quando não há blocos publicados (Por turma e Por professor) */
+.class-empty-schedule .schedule-area,
+.teacher-empty-schedule .schedule-area {
+  display: flex;
+  flex-direction: column;
+}
+
+.class-empty-schedule .empty-days-notice,
+.teacher-empty-schedule .empty-days-notice {
+  display: none;
+}
+
+.class-empty-schedule .schedule-row,
+.teacher-empty-schedule .schedule-row {
+  display: none;
+}
+
+.class-empty-schedule .schedule-scroll,
+.teacher-empty-schedule .schedule-scroll {
+  overflow-x: auto;
+}
+
+.class-empty-notice,
+.teacher-empty-notice {
+  margin-top: 12px;
+  min-height: 290px;
+  padding: 32px 24px;
+  border: 1px dashed #d6d2c8;
+  border-radius: 15px;
+  background: #faf8f3;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+}
+
+.class-empty-notice > span,
+.teacher-empty-notice > span {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 13px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--leaf);
+  background: #e6f2eb;
+}
+
+.class-empty-notice strong,
+.teacher-empty-notice strong {
+  color: var(--forest-deep);
+  font: 800 17px "Manrope", sans-serif;
+}
+
+.class-empty-notice p,
+.teacher-empty-notice p {
+  max-width: 420px;
+  margin: 7px 0 0;
+  color: #7b8881;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.class-empty-notice p strong,
+.teacher-empty-notice p strong {
+  font: 700 11px "Manrope", sans-serif;
+  color: #4a5b52;
+}
+
 .modal-layer { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 20px; }.modal-overlay { position: absolute; inset: 0; border: 0; background: rgba(7,27,18,.62); backdrop-filter: blur(3px); }.lesson-modal { position: relative; width: min(430px,100%); border-radius: 19px; background: var(--paper); padding: 25px; box-shadow: 0 25px 70px rgba(9,28,18,.3); animation: modal-in .2s ease; }
 @keyframes modal-in { from { opacity: 0; transform: translateY(10px); } }.modal-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }.modal-top > span { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; color: #f3c969; background: var(--forest); }.modal-top button { width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; color: #6c7972; background: #eeece6; }.lesson-modal h2 { font: 800 22px 'Manrope'; margin: 0 0 20px; letter-spacing: -.5px; }.details { padding: 17px; border-radius: 12px; background: #f3f0e9; display: grid; grid-template-columns: 1fr 1fr; gap: 17px; }.details > div { display: flex; gap: 8px; color: var(--leaf); }.details small, .details strong { display: block; }.details small { color: #87938d; font-size: 8px; margin-bottom: 2px; }.details strong { color: #34453b; font-size: 10px; }.modal-action { width: 100%; border: 0; border-radius: 10px; padding: 12px; background: var(--forest); color: white; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 18px; font-weight: 700; font-size: 10px; }
 .modal-review { margin: -9px 0 16px; padding: 9px 11px; border-radius: 9px; color: #71571f; background: #fff3cf; font-size: 9px; }

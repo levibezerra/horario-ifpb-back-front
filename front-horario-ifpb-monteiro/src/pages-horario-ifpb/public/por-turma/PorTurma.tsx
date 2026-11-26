@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, type ComponentProps } from "react"
+import { Icon } from "@/components/Icon"
 import { FilterSidebar } from "@/components/Sidebar"
 import { MobileSelection, ScheduleGrid, ScheduleHeading } from "@/components/ScheduleGrid"
 import { useFilterPanel } from "@/hooks/useFilterPanel"
@@ -62,10 +63,12 @@ export default function PorTurma() {
   const [schedules, setSchedules] = useState<HorarioDTO[]>([])
   const [selectedTurmaId, setSelectedTurmaId] = useState<number | null>(null)
   const [query, setQuery] = useState("")
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function loadData() {
       try {
+        setLoading(true)
         const [resCourses, resClasses, resSchedules] = await Promise.all([
           api.get<CursoDTO[]>(API_ENDPOINTS.cursos),
           api.get<TurmaDTO[]>(API_ENDPOINTS.turmas),
@@ -101,6 +104,8 @@ export default function PorTurma() {
         if (sortedClasses.length > 0) setSelectedTurmaId(sortedClasses[0].id!)
       } catch (err) {
         console.error("Erro ao carregar consulta por turma", err)
+      } finally {
+        setLoading(false)
       }
     }
     loadData()
@@ -185,8 +190,10 @@ export default function PorTurma() {
       }))
   }, [classes, courses, query])
 
+  const hasPublishedLessons = lessons.length > 0
+
   return (
-    <div className="workspace">
+    <div className={`workspace${!loading && selectedTurma && !hasPublishedLessons ? " class-empty-schedule" : ""}`}>
       <FilterSidebar
         mode="class"
         groups={filteredGroups}
@@ -216,6 +223,19 @@ export default function PorTurma() {
               lessons={lessons}
             />
             <ScheduleGrid lessons={lessons} mode="class" label={selectedTurma.nome} />
+
+            {!loading && !hasPublishedLessons && (
+              <div className="class-empty-notice" role="status">
+                <span>
+                  <Icon name="calendar" />
+                </span>
+                <strong>Nenhum horário publicado para esta turma</strong>
+                <p>
+                  A turma <strong>{selectedTurma.nome}</strong> ainda não possui blocos de aula
+                  publicados na grade semanal.
+                </p>
+              </div>
+            )}
           </>
         )}
       </main>
