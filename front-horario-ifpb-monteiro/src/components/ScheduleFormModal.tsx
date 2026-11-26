@@ -651,8 +651,9 @@ export function ScheduleFormModal({
                     style={{
                       display: "flex",
                       alignItems: "center",
+                      justifyContent: "center",
                       gap: "6px",
-                      padding: "6px 10px",
+                      padding: "6px 8px",
                       borderRadius: "8px",
                       border: checked
                         ? "1.5px solid #2f9e41"
@@ -665,7 +666,7 @@ export function ScheduleFormModal({
                         ? "rgba(47, 158, 65, 0.05)"
                         : "transparent",
                       fontWeight: checked ? 600 : 400,
-                      fontSize: "0.875rem",
+                      fontSize: "0.84rem",
                       cursor: "pointer",
                       userSelect: "none",
                       whiteSpace: "nowrap",
@@ -679,10 +680,10 @@ export function ScheduleFormModal({
                       style={{
                         accentColor: "#2f9e41",
                         cursor: "pointer",
-                        width: "16px",
-                        height: "16px",
-                        minHeight: "16px",
-                        flex: "0 0 16px",
+                        width: "15px",
+                        height: "15px",
+                        minHeight: "15px",
+                        flex: "0 0 15px",
                         margin: 0,
                       }}
                     />
